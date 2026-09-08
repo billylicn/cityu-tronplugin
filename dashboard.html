@@ -48,11 +48,22 @@
       </button>
       <div class="side-nav-foot">
         <span>非官方社区项目 · MIT License</span>
+        <span class="version-line">当前版本 <strong id="currentVersion">—</strong></span>
+        <span id="versionCheckStatus" class="version-check-status">正在检查更新…</span>
         <a class="project-link" href="https://github.com/billylicn/cityu-tronplugin" target="_blank" rel="noreferrer">GitHub 开源项目 <span aria-hidden="true">↗</span></a>
       </div>
     </aside>
 
     <div class="page-shell">
+      <aside id="updateNotice" class="update-notice is-hidden" aria-live="polite">
+        <div class="update-notice-icon" aria-hidden="true">↑</div>
+        <div class="update-notice-copy">
+          <strong>发现新版本 <span id="latestVersion">—</span></strong>
+          <span>你正在使用 <span id="updateCurrentVersion">—</span>，建议下载最新版以获得功能修复和改进。</span>
+        </div>
+        <a class="button button-primary update-notice-button" href="https://github.com/billylicn/cityu-tronplugin/releases/latest" target="_blank" rel="noreferrer">前往更新</a>
+      </aside>
+
       <div id="overviewPage" class="page-view">
         <section class="control-panel" aria-label="课程范围">
           <div class="scope-switch" role="group" aria-label="课程范围">
@@ -287,7 +298,7 @@
         </div>
       </div>
 
-      <p id="usageNoticeSummary" class="notice-summary"><strong>CityU TronClass Plugin</strong> 是非官方开源辅助工具，不代表澳门城市大学、TronClass 或 Wisdom Garden。本声明会在每次打开插件时展示。</p>
+      <p id="usageNoticeSummary" class="notice-summary"><strong>CityU TronClass Plugin <span id="noticeCurrentVersion"></span></strong> 是非官方开源辅助工具，不代表澳门城市大学、TronClass 或 Wisdom Garden。本声明默认会在每次打开插件时展示。</p>
 
       <div class="notice-sections">
         <section class="notice-section">
@@ -312,9 +323,25 @@
         </section>
       </div>
 
-      <div class="notice-actions">
-        <span>继续即表示你已阅读并知悉以上内容。</span>
-        <button id="usageNoticeAcceptButton" class="button button-primary notice-accept-button" type="submit" autofocus>我已阅读并知悉</button>
+      <div class="notice-acknowledgement">
+        <div class="notice-acknowledgement-heading">
+          <div><strong>请抄写以下完整声明</strong><small>内容完全一致后方可点击确认。</small></div>
+          <button id="usageNoticeCopyButton" class="button button-secondary button-small" type="button">一键复制</button>
+        </div>
+        <div class="notice-copy-bubble" aria-labelledby="usageNoticeRequiredText">
+          <blockquote id="usageNoticeRequiredText">我已知本软件可能出现漏报、错报、重复、延迟或无法读取等情况。我会自行以 TronClass 原页面、课程通知及教师要求为准，并自行承担使用本插件造成的所有后果。</blockquote>
+          <textarea id="usageNoticeAcknowledgement" class="notice-acknowledgement-input" rows="3" autocomplete="off" spellcheck="false" aria-describedby="usageNoticeMatchStatus" placeholder="请抄写或粘贴上方完整声明"></textarea>
+          <span id="usageNoticeMatchStatus" class="notice-match-status" aria-live="polite">等待输入完整声明</span>
+        </div>
+      </div>
+
+      <label class="notice-remember-control">
+        <input id="usageNoticeDontShow" type="checkbox">
+        <span><strong>以后不再展示此声明</strong><small>选择后将在点击确认时保存为本地页面设置，可在“页面设置”中重新开启。</small></span>
+      </label>
+
+      <div class="notice-confirm-actions">
+        <button id="usageNoticeConfirmButton" class="button button-primary" type="button" disabled>确认并进入</button>
       </div>
     </form>
   </dialog>
@@ -328,6 +355,10 @@
       <p class="settings-privacy">页面设置与匿名学习缓存会保存在浏览器本地；不保存姓名、学号、登录凭证、签名文件地址或文件内容。</p>
       <div class="settings-subheading"><strong>栏目顺序</strong><span>使用上下按钮调整出勤、作业和课程文件的显示次序。</span></div>
       <div id="sectionSettingsList" class="section-settings-list"></div>
+      <label class="settings-notice-control">
+        <span><strong>每次打开显示使用声明</strong><small>关闭后不再自动展示；许可条款与免责声明仍然适用。</small></span>
+        <span class="switch"><input id="settingsShowUsageNotice" type="checkbox"><span aria-hidden="true"></span></span>
+      </label>
       <div class="settings-actions">
         <button id="clearCacheButton" class="button button-link danger-link" type="button">清除上次数据</button>
         <div class="settings-actions-right">

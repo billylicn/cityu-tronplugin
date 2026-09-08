@@ -65,7 +65,7 @@ jobs:
           rm -rf "${staging_dir}"
           mkdir -p "${staging_dir}"
           cp manifest.json background.js dashboard.html dashboard.css dashboard.js privacy.html README.md LICENSE "${staging_dir}/"
-          cp -R icons lib "${staging_dir}/"
+          cp -R icons images lib "${staging_dir}/"
 
           (
             cd "${staging_dir}"

@@ -2,6 +2,7 @@ import { AuthError, TronClassApi } from "./lib/api.js";
 import { battleRecordKey, deriveBattleReport, groupReportRecords, reportRecordDescription } from "./lib/battle-report.js";
 import { createBattleReportPng } from "./lib/report-image.js";
 import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, createBattleReportCache, createDashboardCache, readBattleReportCache, readDashboardCache } from "./lib/cache.js";
+import { compareVersions, displayVersion } from "./lib/version.js";
 import {
   STATUS_LABELS,
   TYPE_LABELS,
@@ -15,6 +16,8 @@ import {
 
 const api = new TronClassApi();
 const UI_PREFERENCES_KEY = "uiPreferences";
+const LATEST_RELEASE_API = "https://api.github.com/repos/billylicn/cityu-tronplugin/releases/latest";
+const USAGE_ACKNOWLEDGEMENT = "我已知本软件可能出现漏报、错报、重复、延迟或无法读取等情况。我会自行以 TronClass 原页面、课程通知及教师要求为准，并自行承担使用本插件造成的所有后果。";
 const DEFAULT_SECTION_ORDER = Object.freeze(["attendance", "tasks", "materials"]);
 const DEFAULT_COLLAPSED = Object.freeze({ overview: false, attendance: false, tasks: false, materials: false });
 const SECTION_LABELS = Object.freeze({
@@ -51,6 +54,7 @@ const state = {
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     defaultCollapsed: { ...DEFAULT_COLLAPSED },
     autoRefresh: true,
+    suppressUsageNotice: false,
     settingsDraft: null
   }
 };
@@ -68,36 +72,157 @@ const dom = Object.fromEntries([
   "battleTitle", "battleIncompleteBadge", "battleRiskRing", "battleRiskValue", "battleStats",
   "battleAttendanceRate", "battleAttendanceMeter", "battleAttendanceHelp", "battleHomeworkRate",
   "battleHomeworkMeter", "battleHomeworkHelp", "battleWarning", "battleFailedCourses", "battleCoverage",
-  "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords", "usageNoticeDialog"
+  "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords", "usageNoticeDialog",
+  "usageNoticeDontShow", "usageNoticeCopyButton", "usageNoticeAcknowledgement", "usageNoticeMatchStatus",
+  "usageNoticeConfirmButton",
+  "settingsShowUsageNotice", "currentVersion", "noticeCurrentVersion", "versionCheckStatus",
+  "updateNotice", "latestVersion", "updateCurrentVersion"
 ].map((id) => [id, document.getElementById(id)]));
 
 let usageNoticePromise = null;
+let usageNoticeConfirmed = false;
 
 bindEvents();
 void start();
 
 async function start() {
+  await loadUiPreferences();
+  renderCurrentVersion();
   await showUsageNotice();
+  void checkForUpdates();
   await initialize();
 }
 
 function showUsageNotice() {
   const dialog = dom.usageNoticeDialog;
-  if (!dialog || typeof dialog.showModal !== "function") return Promise.resolve();
+  if (state.ui.suppressUsageNotice || !dialog || typeof dialog.showModal !== "function") return Promise.resolve();
   if (usageNoticePromise) return usageNoticePromise;
 
+  usageNoticeConfirmed = false;
+  dom.usageNoticeDontShow.checked = false;
+  dom.usageNoticeAcknowledgement.value = "";
+  dom.usageNoticeAcknowledgement.disabled = false;
+  dom.usageNoticeAcknowledgement.classList.remove("is-matched");
+  dom.usageNoticeMatchStatus.textContent = "等待输入完整声明";
+  dom.usageNoticeMatchStatus.classList.remove("is-matched");
+  dom.usageNoticeConfirmButton.disabled = true;
   usageNoticePromise = new Promise((resolve) => {
-    dialog.addEventListener("close", () => {
+    const handleClose = async () => {
+      if (!usageNoticeConfirmed) {
+        queueMicrotask(() => {
+          if (!dialog.open) dialog.showModal();
+        });
+        return;
+      }
+      dialog.removeEventListener("close", handleClose);
+      if (dom.usageNoticeDontShow.checked) {
+        state.ui.suppressUsageNotice = true;
+        try {
+          await saveUiPreferences();
+        } catch (error) {
+          state.ui.suppressUsageNotice = false;
+          toast(`声明设置保存失败：${error?.message || String(error)}`, true);
+        }
+      }
       usageNoticePromise = null;
       resolve();
-    }, { once: true });
+    };
+    dialog.addEventListener("close", handleClose);
     if (!dialog.open) dialog.showModal();
   });
   return usageNoticePromise;
 }
 
+async function copyUsageAcknowledgement() {
+  try {
+    await navigator.clipboard.writeText(USAGE_ACKNOWLEDGEMENT);
+    toast("声明已复制，请粘贴到输入框");
+  } catch {
+    const copyTarget = document.createElement("textarea");
+    copyTarget.value = USAGE_ACKNOWLEDGEMENT;
+    copyTarget.setAttribute("readonly", "");
+    copyTarget.style.position = "fixed";
+    copyTarget.style.opacity = "0";
+    document.body.append(copyTarget);
+    copyTarget.select();
+    const copied = document.execCommand?.("copy");
+    copyTarget.remove();
+    if (copied) toast("声明已复制，请粘贴到输入框");
+    else toast("无法自动复制，请手动抄写声明", true);
+  }
+  dom.usageNoticeAcknowledgement.focus();
+}
+
+function handleUsageAcknowledgementInput() {
+  const input = dom.usageNoticeAcknowledgement;
+  const matched = input.value.trim() === USAGE_ACKNOWLEDGEMENT;
+  input.classList.toggle("is-matched", matched);
+  dom.usageNoticeMatchStatus.classList.toggle("is-matched", matched);
+  dom.usageNoticeMatchStatus.textContent = matched ? "内容一致，请点击确认" : "内容尚未完全一致";
+  dom.usageNoticeConfirmButton.disabled = !matched;
+}
+
+function confirmUsageNotice() {
+  const matched = dom.usageNoticeAcknowledgement.value.trim() === USAGE_ACKNOWLEDGEMENT;
+  if (!matched || !dom.usageNoticeDialog.open) {
+    handleUsageAcknowledgementInput();
+    return;
+  }
+  usageNoticeConfirmed = true;
+  dom.usageNoticeDialog.close();
+}
+
+function renderCurrentVersion() {
+  const current = displayVersion(globalThis.chrome?.runtime?.getManifest?.().version);
+  dom.currentVersion.textContent = current;
+  dom.noticeCurrentVersion.textContent = current;
+  dom.updateCurrentVersion.textContent = current;
+}
+
+async function checkForUpdates() {
+  const current = globalThis.chrome?.runtime?.getManifest?.().version;
+  if (!current) {
+    dom.versionCheckStatus.textContent = "无法读取当前版本";
+    return;
+  }
+
+  dom.versionCheckStatus.textContent = "正在检查更新…";
+  dom.versionCheckStatus.classList.remove("has-update", "is-current");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch(LATEST_RELEASE_API, {
+      credentials: "omit",
+      cache: "no-store",
+      headers: { Accept: "application/vnd.github+json" },
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`GitHub 返回 ${response.status}`);
+    const release = await response.json();
+    const latest = release?.tag_name;
+    const comparison = compareVersions(latest, current);
+    if (comparison === null) throw new Error("版本号格式无法识别");
+
+    if (comparison > 0) {
+      const label = displayVersion(latest);
+      dom.latestVersion.textContent = label;
+      dom.versionCheckStatus.textContent = `可更新至 ${label}`;
+      dom.versionCheckStatus.classList.add("has-update");
+      dom.updateNotice.classList.remove("is-hidden");
+    } else {
+      dom.versionCheckStatus.textContent = "已是最新版";
+      dom.versionCheckStatus.classList.add("is-current");
+      dom.updateNotice.classList.add("is-hidden");
+    }
+  } catch (error) {
+    dom.versionCheckStatus.textContent = "暂时无法检查更新";
+    console.warn("无法检查 GitHub 最新版本", error);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function initialize() {
-  await loadUiPreferences();
   dom.autoRefreshToggle.checked = state.ui.autoRefresh;
   enableCollapsibleSections();
   const cacheLoaded = await loadCaches();
@@ -122,6 +247,7 @@ async function loadUiPreferences() {
     if (order.length === DEFAULT_SECTION_ORDER.length) state.ui.sectionOrder = order;
 
     if (typeof preferences.autoRefresh === "boolean") state.ui.autoRefresh = preferences.autoRefresh;
+    if (typeof preferences.suppressUsageNotice === "boolean") state.ui.suppressUsageNotice = preferences.suppressUsageNotice;
 
     if (Array.isArray(preferences.ignoredActivityKeys)) {
       state.ignoredActivityKeys = new Set(preferences.ignoredActivityKeys
@@ -149,6 +275,7 @@ async function saveUiPreferences() {
       sectionOrder: [...state.ui.sectionOrder],
       defaultCollapsed: { ...state.ui.defaultCollapsed },
       autoRefresh: state.ui.autoRefresh,
+      suppressUsageNotice: state.ui.suppressUsageNotice,
       ignoredActivityKeys: [...state.ignoredActivityKeys]
     }
   });
@@ -311,8 +438,10 @@ function setSectionCollapsed(section, collapsed) {
 function openSettings() {
   state.ui.settingsDraft = {
     sectionOrder: [...state.ui.sectionOrder],
-    defaultCollapsed: { ...state.ui.defaultCollapsed }
+    defaultCollapsed: { ...state.ui.defaultCollapsed },
+    suppressUsageNotice: state.ui.suppressUsageNotice
   };
+  dom.settingsShowUsageNotice.checked = !state.ui.settingsDraft.suppressUsageNotice;
   renderSectionSettings();
   dom.settingsDialog.showModal();
 }
@@ -359,8 +488,10 @@ function moveSettingsSection(key, offset) {
 function resetSettingsDraft() {
   state.ui.settingsDraft = {
     sectionOrder: [...DEFAULT_SECTION_ORDER],
-    defaultCollapsed: { ...DEFAULT_COLLAPSED }
+    defaultCollapsed: { ...DEFAULT_COLLAPSED },
+    suppressUsageNotice: false
   };
+  dom.settingsShowUsageNotice.checked = true;
   renderSectionSettings();
 }
 
@@ -369,6 +500,7 @@ async function applySettings() {
   if (!draft) return;
   state.ui.sectionOrder = [...draft.sectionOrder];
   state.ui.defaultCollapsed = { ...draft.defaultCollapsed };
+  state.ui.suppressUsageNotice = !dom.settingsShowUsageNotice.checked;
   applySectionOrder();
   for (const [key, collapsed] of Object.entries(state.ui.defaultCollapsed)) {
     const section = document.querySelector(`#dashboardContent > section[data-section-key="${key}"]`);
@@ -460,12 +592,18 @@ function bindEvents() {
   dom.settingsCloseButton.addEventListener("click", () => dom.settingsDialog.close());
   dom.settingsResetButton.addEventListener("click", resetSettingsDraft);
   dom.settingsApplyButton.addEventListener("click", applySettings);
+  dom.settingsShowUsageNotice.addEventListener("change", () => {
+    if (state.ui.settingsDraft) state.ui.settingsDraft.suppressUsageNotice = !dom.settingsShowUsageNotice.checked;
+  });
   dom.clearCacheButton.addEventListener("click", clearStoredData);
   dom.autoRefreshToggle.addEventListener("change", handleAutoRefreshToggle);
   dom.settingsDialog.addEventListener("click", (event) => {
     if (event.target === dom.settingsDialog) dom.settingsDialog.close();
   });
   dom.usageNoticeDialog.addEventListener("cancel", (event) => event.preventDefault());
+  dom.usageNoticeCopyButton.addEventListener("click", copyUsageAcknowledgement);
+  dom.usageNoticeAcknowledgement.addEventListener("input", handleUsageAcknowledgementInput);
+  dom.usageNoticeConfirmButton.addEventListener("click", confirmUsageNotice);
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "SHOW_USAGE_NOTICE") return false;
     showUsageNotice().then(() => sendResponse({ ok: true }));
