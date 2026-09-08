@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "城大 TronClass 助手",
+  "name": "CityU TronClass Plugin",
   "version": "0.3.0",
   "description": "在本地聚合澳门城市大学 TronClass 的出勤、待提交任务、课程文件与匿名城大战绩报告。",
   "permissions": ["downloads", "tabs", "storage"],
@@ -13,7 +13,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "打开城大 TronClass 助手"
+    "default_title": "打开 CityU TronClass Plugin"
   },
   "icons": {
     "16": "icons/icon-16.png",
