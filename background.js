@@ -37,6 +37,11 @@ async function openOrFocusDashboard() {
     const tab = tabs[0];
     await chrome.tabs.update(tab.id, { active: true });
     if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: "SHOW_USAGE_NOTICE" });
+    } catch {
+      // 页面仍在加载时由 Dashboard 自己展示声明。
+    }
     return;
   }
   await chrome.tabs.create({ url: DASHBOARD_URL });

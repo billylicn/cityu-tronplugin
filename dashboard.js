@@ -68,11 +68,33 @@ const dom = Object.fromEntries([
   "battleTitle", "battleIncompleteBadge", "battleRiskRing", "battleRiskValue", "battleStats",
   "battleAttendanceRate", "battleAttendanceMeter", "battleAttendanceHelp", "battleHomeworkRate",
   "battleHomeworkMeter", "battleHomeworkHelp", "battleWarning", "battleFailedCourses", "battleCoverage",
-  "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords"
+  "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords", "usageNoticeDialog"
 ].map((id) => [id, document.getElementById(id)]));
 
+let usageNoticePromise = null;
+
 bindEvents();
-initialize();
+void start();
+
+async function start() {
+  await showUsageNotice();
+  await initialize();
+}
+
+function showUsageNotice() {
+  const dialog = dom.usageNoticeDialog;
+  if (!dialog || typeof dialog.showModal !== "function") return Promise.resolve();
+  if (usageNoticePromise) return usageNoticePromise;
+
+  usageNoticePromise = new Promise((resolve) => {
+    dialog.addEventListener("close", () => {
+      usageNoticePromise = null;
+      resolve();
+    }, { once: true });
+    if (!dialog.open) dialog.showModal();
+  });
+  return usageNoticePromise;
+}
 
 async function initialize() {
   await loadUiPreferences();
@@ -442,6 +464,12 @@ function bindEvents() {
   dom.autoRefreshToggle.addEventListener("change", handleAutoRefreshToggle);
   dom.settingsDialog.addEventListener("click", (event) => {
     if (event.target === dom.settingsDialog) dom.settingsDialog.close();
+  });
+  dom.usageNoticeDialog.addEventListener("cancel", (event) => event.preventDefault());
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== "SHOW_USAGE_NOTICE") return false;
+    showUsageNotice().then(() => sendResponse({ ok: true }));
+    return true;
   });
 }
 

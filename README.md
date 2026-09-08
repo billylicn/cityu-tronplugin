@@ -2,6 +2,8 @@
 
 一个面向澳门城市大学学生的非官方 Chrome/Chromium 扩展，在本地统一展示 TronClass 的出勤、待提交作业、讨论、问卷、线上测验、互动、分组任务和课程文件。
 
+项目主页：https://github.com/billylicn/cityu-tronplugin
+
 ## 使用方法
 
 1. 打开项目的 [最新版本下载页面](https://github.com/billylicn/cityu-tronplugin/releases/latest)。
@@ -72,4 +74,6 @@ npm run check
 
 ## 开源许可与免责声明
 
-本项目采用 [MIT License](LICENSE)。这是非官方社区项目，与澳门城市大学、TronClass 或 Wisdom Garden Limited 无隶属或认可关系。使用者应遵守学校规定、课程材料版权和平台服务条款。
+本项目采用 [MIT License](LICENSE)，软件按“原样”提供。这是非官方社区项目，与澳门城市大学、TronClass 或 Wisdom Garden Limited 无隶属或认可关系。
+
+平台接口、课程安排和教师设置可能发生变化，插件可能出现漏报、错报、重复、延迟或无法读取。作者及贡献者不为任何漏报、错报及其造成的签到、作业、考试、成绩或其他后果负责。使用者必须以 TronClass 原页面、课程通知和教师要求为准，自行核对信息，并对使用本软件作出的判断和行为承担责任。

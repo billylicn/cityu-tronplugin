@@ -46,7 +46,10 @@
         <span class="side-nav-icon side-nav-icon-battle" aria-hidden="true">★</span>
         <span><strong>城大战绩</strong><small>全课程统计报告</small></span>
       </button>
-      <div class="side-nav-foot">非官方社区项目<br>MIT License</div>
+      <div class="side-nav-foot">
+        <span>非官方社区项目 · MIT License</span>
+        <a class="project-link" href="https://github.com/billylicn/cityu-tronplugin" target="_blank" rel="noreferrer">GitHub 开源项目 <span aria-hidden="true">↗</span></a>
+      </div>
     </aside>
 
     <div class="page-shell">
@@ -272,6 +275,49 @@
       </div>
     </div>
   </main>
+
+
+  <dialog id="usageNoticeDialog" class="notice-dialog" aria-labelledby="usageNoticeTitle" aria-describedby="usageNoticeSummary">
+    <form method="dialog" class="notice-card">
+      <div class="notice-header">
+        <div class="notice-brand-mark" aria-hidden="true">TC</div>
+        <div>
+          <span class="eyebrow">使用声明</span>
+          <h2 id="usageNoticeTitle">使用前请阅读并知悉</h2>
+        </div>
+      </div>
+
+      <p id="usageNoticeSummary" class="notice-summary"><strong>CityU TronClass Plugin</strong> 是非官方开源辅助工具，不代表澳门城市大学、TronClass 或 Wisdom Garden。本声明会在每次打开插件时展示。</p>
+
+      <div class="notice-sections">
+        <section class="notice-section">
+          <h3>软件使用方法</h3>
+          <ol>
+            <li>先在同一浏览器中登录澳门城市大学 TronClass。</li>
+            <li>通过学习总览查看聚合结果，并使用直达按钮返回原平台核对。</li>
+            <li>课程文件仅按当前账号已有权限处理；使用者应遵守课程材料版权和学校规定。</li>
+          </ol>
+        </section>
+
+        <section class="notice-section">
+          <h3>开源与许可</h3>
+          <p>本软件依据 <a href="LICENSE" target="_blank">MIT License</a> 以“原样”提供，不对适销性、特定用途适用性、准确性、完整性、及时性或持续可用性作任何明示或默示保证。</p>
+          <a class="notice-project-link" href="https://github.com/billylicn/cityu-tronplugin" target="_blank" rel="noreferrer">查看 GitHub 开源项目 <span aria-hidden="true">↗</span></a>
+        </section>
+
+        <section class="notice-section notice-section-warning">
+          <h3>责任说明</h3>
+          <p>平台接口、课程安排和教师设置可能随时变化，插件可能出现漏报、错报、重复、延迟或无法读取。作者及贡献者不为任何漏报、错报及其造成的签到、作业、考试、成绩或其他后果负责。</p>
+          <p><strong>使用者必须自行以 TronClass 原页面、课程通知及教师要求为准，并对使用本软件作出的判断和行为承担全部责任。</strong></p>
+        </section>
+      </div>
+
+      <div class="notice-actions">
+        <span>继续即表示你已阅读并知悉以上内容。</span>
+        <button id="usageNoticeAcceptButton" class="button button-primary notice-accept-button" type="submit" autofocus>我已阅读并知悉</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
     <form method="dialog" class="settings-card">
