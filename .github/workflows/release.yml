@@ -60,7 +60,6 @@ jobs:
           set -euo pipefail
 
           archive_name="cityu-tronclass-plugin-${GITHUB_REF_NAME}.zip"
-          checksum_name="${archive_name}.sha256"
           staging_dir="${RUNNER_TEMP}/cityu-tronclass-plugin"
 
           rm -rf "${staging_dir}"
@@ -73,11 +72,7 @@ jobs:
             zip -r "${GITHUB_WORKSPACE}/${archive_name}" .
           )
 
-          cd "${GITHUB_WORKSPACE}"
-          sha256sum "${archive_name}" > "${checksum_name}"
-
           echo "archive=${archive_name}" >> "${GITHUB_OUTPUT}"
-          echo "checksum=${checksum_name}" >> "${GITHUB_OUTPUT}"
 
       - name: Publish GitHub Release
         env:
@@ -85,7 +80,6 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" \
             "${{ steps.package.outputs.archive }}" \
-            "${{ steps.package.outputs.checksum }}" \
             --verify-tag \
             --title "CityU TronClass Plugin ${GITHUB_REF_NAME}" \
             --generate-notes
