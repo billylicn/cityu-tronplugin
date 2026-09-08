@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>城大 TronClass 助手</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">TC</div>
+      <div>
+        <h1>城大 TronClass 助手</h1>
+        <p>出勤、待提交任务与课程文件，一页直达</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div id="studentIdentity" class="student-identity is-hidden" aria-label="当前学生">
+        <span class="student-identity-text">
+          <strong id="studentName">当前学生</strong>
+          <span>学号 <span id="studentNumber">—</span></span>
+        </span>
+      </div>
+      <div class="refresh-status-stack overview-action">
+        <span id="refreshMeta" class="refresh-meta">尚未刷新</span>
+        <label class="auto-refresh-control">
+          <span>自动刷新</span>
+          <span class="switch switch-compact"><input id="autoRefreshToggle" type="checkbox"><span aria-hidden="true"></span></span>
+        </label>
+      </div>
+      <button id="settingsButton" class="button button-secondary overview-action" type="button">页面设置</button>
+      <button id="refreshButton" class="button button-primary overview-action" type="button">刷新数据</button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <aside class="side-nav" aria-label="功能选择">
+      <div class="side-nav-title">功能</div>
+      <button class="side-nav-button is-active" data-page="overview" type="button" aria-current="page">
+        <span class="side-nav-icon" aria-hidden="true">▦</span>
+        <span><strong>学习总览</strong><small>出勤、任务与文件</small></span>
+      </button>
+      <button class="side-nav-button" data-page="battle" type="button">
+        <span class="side-nav-icon side-nav-icon-battle" aria-hidden="true">★</span>
+        <span><strong>城大战绩</strong><small>全课程统计报告</small></span>
+      </button>
+      <div class="side-nav-foot">非官方社区项目<br>MIT License</div>
+    </aside>
+
+    <div class="page-shell">
+      <div id="overviewPage" class="page-view">
+        <section class="control-panel" aria-label="课程范围">
+          <div class="scope-switch" role="group" aria-label="课程范围">
+            <button class="scope-button is-active" data-scope="ongoing" type="button">进行中</button>
+            <button class="scope-button" data-scope="history" type="button">历史课程</button>
+          </div>
+          <div class="control-detail">
+            <span id="scopeDescription">按照 TronClass 课程列表中的最新学期分组展示，不使用本地日期推测。</span>
+            <select id="historyCourseSelect" class="select is-hidden" aria-label="选择历史课程"></select>
+          </div>
+        </section>
+
+        <section id="loginPanel" class="login-panel is-hidden">
+          <div>
+            <h2>需要登录 TronClass</h2>
+            <p id="loginMessage">请先在浏览器中登录澳门城市大学 TronClass，然后返回刷新。</p>
+          </div>
+          <button id="loginButton" class="button button-primary" type="button">打开 TronClass 登录页</button>
+        </section>
+
+        <section id="loadingPanel" class="loading-panel">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <strong id="loadingTitle">正在连接 TronClass…</strong>
+            <p id="loadingDetail">仅使用浏览器当前登录会话。</p>
+          </div>
+        </section>
+
+        <div id="dashboardContent" class="is-hidden">
+          <section class="overview-section" data-section-key="overview" aria-labelledby="overviewTitle">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">概览</span>
+                <h2 id="overviewTitle">统计面板</h2>
+              </div>
+              <p id="courseSummary" class="section-note"></p>
+            </div>
+            <div id="statsGrid" class="stats-grid"></div>
+          </section>
+
+          <section class="content-section" data-section-key="attendance" aria-labelledby="attendanceTitle">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">出勤</span>
+                <h2 id="attendanceTitle">出勤情况</h2>
+              </div>
+              <p class="section-note">异常记录优先；统计口径以教师在 TronClass 的设置为准。</p>
+            </div>
+            <div id="attendanceGrid" class="attendance-grid"></div>
+          </section>
+
+          <section class="content-section" data-section-key="tasks" aria-labelledby="tasksTitle">
+            <div class="section-heading section-heading-with-controls">
+              <div class="task-heading-copy">
+                <span class="eyebrow">任务</span>
+                <div class="task-heading-title">
+                  <h2 id="tasksTitle">未交与学习活动</h2>
+                  <details id="hiddenTasksMenu" class="hidden-tasks-menu">
+                    <summary>已隐藏 <strong id="hiddenTaskCount">0</strong></summary>
+                    <div class="hidden-tasks-popover">
+                      <div class="hidden-tasks-header">
+                        <div><strong>已隐藏的任务</strong><span>这些项目不会计入首页提示</span></div>
+                        <button id="restoreAllHiddenTasks" class="button button-link button-small" type="button">全部还原</button>
+                      </div>
+                      <div id="hiddenTaskList" class="hidden-task-list"></div>
+                    </div>
+                  </details>
+                </div>
+              </div>
+              <div class="filter-row">
+                <select id="taskCourseFilter" class="select" aria-label="按课程筛选任务"></select>
+                <select id="taskStatusFilter" class="select" aria-label="按状态筛选任务">
+                  <option value="attention">需要关注</option>
+                  <option value="all">全部状态</option>
+                  <option value="overdue">逾期</option>
+                  <option value="pending">进行中</option>
+                  <option value="upcoming">即将开始</option>
+                  <option value="completed">已完成</option>
+                  <option value="record">互动记录</option>
+                  <option value="ignored">已忽略提示</option>
+                </select>
+                <select id="taskTypeFilter" class="select" aria-label="按类型筛选任务">
+                  <option value="all">全部类型</option>
+                  <option value="homework">作业</option>
+                  <option value="exam">线上测验</option>
+                  <option value="questionnaire">问卷</option>
+                  <option value="discussion">讨论</option>
+                  <option value="interaction">互动</option>
+                  <option value="group">分组学习</option>
+                </select>
+              </div>
+            </div>
+            <div id="taskList" class="task-list"></div>
+          </section>
+
+          <section class="content-section" data-section-key="materials" aria-labelledby="materialsTitle">
+            <div class="section-heading section-heading-with-controls">
+              <div>
+                <span class="eyebrow">文件</span>
+                <h2 id="materialsTitle">课程文件</h2>
+              </div>
+              <label class="select-control" for="materialCourseFilter">
+                <span>选择课程</span>
+                <select id="materialCourseFilter" class="select material-course-select" aria-label="选择文件所属课程"></select>
+              </label>
+            </div>
+            <div id="materialsList" class="materials-list"></div>
+          </section>
+
+          <section id="errorsSection" class="content-section error-section is-hidden" data-section-key="errors" aria-labelledby="errorsTitle">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">局部错误</span>
+                <h2 id="errorsTitle">部分内容未能读取</h2>
+              </div>
+            </div>
+            <ul id="errorsList" class="errors-list"></ul>
+          </section>
+        </div>
+      </div>
+
+      <div id="battlePage" class="page-view is-hidden">
+        <section class="battle-page-heading">
+          <div>
+            <span class="eyebrow">全课程报告</span>
+            <h2>城大战绩</h2>
+            <p>按全部进行中与历史课程的作业和考勤记录，生成仅供自我检视的统计报告。</p>
+          </div>
+          <div id="battleResultActions" class="battle-actions is-hidden">
+            <button id="battleRestoreButton" class="button button-secondary" type="button" disabled>恢复完整统计</button>
+            <button id="battleRegenerateButton" class="button button-secondary" type="button">重新生成</button>
+            <button id="battleShareButton" class="button battle-share-button" type="button">一键分享图</button>
+          </div>
+        </section>
+
+        <section id="battleEmpty" class="battle-empty">
+          <div class="battle-empty-art" aria-hidden="true"><span>★</span></div>
+          <span class="eyebrow">首次进入不会自动扫描</span>
+          <h3>生成你的城大战绩</h3>
+          <p>将以 2 门课程的小并发读取帐号下全部课程，只请求普通作业与个人考勤。匿名报告会保存为本地缓存，分享图片不会写入扩展存储。</p>
+          <button id="battleGenerateButton" class="button battle-generate-button" type="button">生成城大战绩</button>
+        </section>
+
+        <section id="battleLoading" class="battle-loading is-hidden" aria-live="polite">
+          <div class="battle-loader-orbit" aria-hidden="true"><span></span></div>
+          <span class="eyebrow">正在扫描全部课程</span>
+          <h3 id="battleProgressTitle">正在准备课程列表…</h3>
+          <p id="battleProgressDetail">报告只读取作业和考勤数据。</p>
+          <div class="battle-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span id="battleProgressBar"></span>
+          </div>
+          <strong id="battleProgressPercent">0%</strong>
+        </section>
+
+        <section id="battleError" class="battle-error is-hidden">
+          <div>
+            <strong>城大战绩生成失败</strong>
+            <p id="battleErrorMessage">请确认已登录 TronClass 后重试。</p>
+          </div>
+          <button id="battleRetryButton" class="button button-primary" type="button">重新尝试</button>
+        </section>
+
+        <div id="battleResult" class="battle-result is-hidden">
+          <section class="battle-hero">
+            <div class="battle-hero-glow" aria-hidden="true"></div>
+            <div id="battleGradeBadge" class="battle-grade-badge"><strong id="battleGrade">—</strong><span>综合等级</span></div>
+            <div class="battle-hero-copy">
+              <span class="battle-kicker">CITYU TRONCLASS BATTLE REPORT</span>
+              <h3 id="battleTitle">暂无等级</h3>
+              <div id="battleIncompleteBadge" class="battle-incomplete-badge is-hidden">数据可能不完整</div>
+            </div>
+            <div class="battle-risk-gauge">
+              <div id="battleRiskRing" class="battle-risk-ring"><span id="battleRiskValue">—</span></div>
+              <small>综合风险率</small>
+            </div>
+          </section>
+
+          <section id="battleStats" class="battle-stats" aria-label="核心统计"></section>
+
+          <section class="battle-rate-panel">
+            <article class="battle-rate-card">
+              <div><span>缺勤率</span><strong id="battleAttendanceRate">—</strong></div>
+              <div class="battle-meter"><span id="battleAttendanceMeter"></span><i></i></div>
+              <p id="battleAttendanceHelp"></p>
+            </article>
+            <article class="battle-rate-card">
+              <div><span>缺交率</span><strong id="battleHomeworkRate">—</strong></div>
+              <div class="battle-meter"><span id="battleHomeworkMeter"></span><i></i></div>
+              <p id="battleHomeworkHelp"></p>
+            </article>
+          </section>
+
+          <section id="battleWarning" class="battle-warning is-hidden">
+            <div>
+              <strong>数据可能不完整</strong>
+              <p>以下课程的作业或考勤接口未能完整读取，本次等级只根据成功取得的数据计算。</p>
+            </div>
+            <ul id="battleFailedCourses"></ul>
+          </section>
+
+          <section class="battle-records-section">
+            <div class="section-heading">
+              <div><span class="eyebrow">明细</span><h2>缺勤与缺交记录</h2></div>
+              <p id="battleCoverage" class="section-note"></p>
+            </div>
+            <div class="battle-record-columns">
+              <article class="battle-record-card">
+                <div class="battle-record-card-title"><div><span>考勤</span><h3>缺勤记录</h3></div><strong id="battleAbsenceCount">0</strong></div>
+                <p class="battle-record-note">包含缺席、事假和病假；迟到不计入缺勤。</p>
+                <div id="battleAbsenceRecords" class="battle-record-groups"></div>
+              </article>
+              <article class="battle-record-card">
+                <div class="battle-record-card-title"><div><span>作业</span><h3>缺交作业记录</h3></div><strong id="battleMissingCount">0</strong></div>
+                <p class="battle-record-note">只包含截止时间已到且仍未提交的普通作业。</p>
+                <div id="battleMissingRecords" class="battle-record-groups"></div>
+              </article>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+    <form method="dialog" class="settings-card">
+      <div class="settings-header">
+        <div><span class="eyebrow">页面设置</span><h2 id="settingsTitle">调整栏目顺序与折叠状态</h2></div>
+        <button id="settingsCloseButton" class="button button-link" type="button" aria-label="关闭页面设置">关闭</button>
+      </div>
+      <p class="settings-privacy">页面设置与匿名学习缓存会保存在浏览器本地；不保存姓名、学号、登录凭证、签名文件地址或文件内容。</p>
+      <div class="settings-subheading"><strong>栏目顺序</strong><span>使用上下按钮调整出勤、作业和课程文件的显示次序。</span></div>
+      <div id="sectionSettingsList" class="section-settings-list"></div>
+      <div class="settings-actions">
+        <button id="clearCacheButton" class="button button-link danger-link" type="button">清除上次数据</button>
+        <div class="settings-actions-right">
+          <button id="settingsResetButton" class="button button-secondary" type="button">恢复默认</button>
+          <button id="settingsApplyButton" class="button button-primary" type="button">应用设置</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

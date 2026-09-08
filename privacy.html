@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>隐私说明 · 城大 TronClass 助手</title>
+  <style>
+    :root { font-family: Inter,"Noto Sans SC","PingFang SC",system-ui,sans-serif; color:#172338; background:#f4f7f9; }
+    body { margin:0; }
+    main { width:min(780px,calc(100% - 40px)); margin:48px auto; background:white; border:1px solid #dfe5ec; border-radius:18px; padding:38px 42px; box-shadow:0 12px 36px rgba(31,45,65,.08); }
+    h1 { margin-top:0; letter-spacing:-.03em; } h2 { margin-top:30px; font-size:18px; }
+    p,li { color:#556276; line-height:1.8; } strong { color:#172338; }
+    .notice { padding:14px 16px; border-radius:10px; background:#e9f7f4; color:#27665e; }
+    code { background:#eef2f6; padding:2px 5px; border-radius:4px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>隐私说明</h1>
+  <p class="notice"><strong>简要说明：</strong>本扩展没有后端，不上传数据。页面设置和经过字段白名单处理的匿名学习缓存保存在浏览器本地；姓名、学号、内部用户 ID、登录凭证和临时文件地址不会被持久化。</p>
+  <h2>数据如何处理</h2>
+  <ul>
+    <li>仅使用浏览器当前的 TronClass 登录会话，读取学生本来就有权查看的内容。</li>
+    <li>匿名缓存可包含课程名称、活动标题、状态、时间、课程或活动标识、正式 TronClass 直达地址、考勤摘要和课程文件元数据。</li>
+    <li>读取当前账号的姓名和学号，仅用于主动联网后的 Dashboard 顶栏账号确认；缓存模式不显示，关闭或刷新页面后不会从缓存恢复。</li>
+    <li>为读取个人出勤，会在内存中短暂使用 TronClass 内部用户 ID，但不会展示或持久化。</li>
+    <li>不会持久化姓名、学号、邮箱、内部用户 ID、Cookie、JWT、登录 bootstrap、请求头或其他身份字段。</li>
+    <li>不会保存短期签名 URL、Blob、文件内容、分享图片或下载内容。</li>
+    <li>“城大战绩”缓存包含匿名统计、明细和手动排除状态；报告分享图默认匿名，不包含姓名和学号。</li>
+    <li>栏目顺序、默认折叠状态和自动刷新开关会写入 <code>chrome.storage.local</code> 并长期生效。</li>
+    <li>可在“页面设置”中点击“清除上次数据”，删除学习总览缓存、战绩缓存和记录排除状态，同时保留页面布局及自动刷新设置。</li>
+  </ul>
+  <h2>自动刷新</h2>
+  <p>自动刷新默认开启。关闭后，进入插件、重新加载页面或切换到缓存中不存在的课程范围时不会请求 TronClass；用户主动点击“刷新数据”“生成城大战绩”或“重新生成”时仍会联网。</p>
+  <h2>网络请求</h2>
+  <p>扩展只允许访问 <code>tronclass.cityu.edu.mo</code> 和课程文件媒体域名 <code>tcmedia.cityu.edu.mo</code>，不包含广告、统计、遥测或第三方服务。</p>
+  <h2>课程文件下载边界</h2>
+  <p>扩展只调用 TronClass 官方下载接口，或使用平台在当前会话中实际签发的完整预览文件地址。不会伪造权限、猜测地址、破解加密或绕过 DRM。</p>
+  <h2>开源与审查</h2>
+  <p>项目以 MIT License 开源。任何人都可以检查源代码、网络域名、缓存字段和所申请的浏览器权限。</p>
+  <h2>免责声明</h2>
+  <p>本项目是非官方学生辅助工具，与澳门城市大学或 TronClass/Wisdom Garden 无隶属关系。平台接口变化可能导致部分功能暂时不可用。</p>
+</main>
+</body>
+</html>

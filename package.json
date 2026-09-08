@@ -1,0 +1,11 @@
+{
+  "name": "cityu-tronclass-helper",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check background.js && node --check dashboard.js && node --check lib/api.js && node --check lib/normalizers.js && node --check lib/battle-report.js && node --check lib/report-image.js && node --check lib/cache.js"
+  },
+  "license": "MIT"
+}

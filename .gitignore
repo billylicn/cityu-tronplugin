@@ -1,0 +1,29 @@
+.DS_Store
+
+# Dependencies and build/test output
+node_modules/
+coverage/
+dist/
+test-results/
+playwright-report/
+blob-report/
+*.zip
+
+# Local browser sessions, captures and diagnostics
+.playwright-mcp/
+.playwright/
+.chrome-profile/
+chrome-profile/
+user-data-dir/
+*.har
+*.log
+trace.zip
+/*.png
+
+# Local secrets and machine-specific settings
+.env
+.env.*
+*.local
+*.sqlite
+*.sqlite3
+*.db
