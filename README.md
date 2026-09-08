@@ -1,4 +1,4 @@
-# 城大 TronClass 助手
+# CityU TronClass Plugin
 
 一个面向澳门城市大学学生的非官方 Chrome/Chromium 扩展，在本地统一展示 TronClass 的出勤、待提交作业、讨论、问卷、线上测验、互动、分组任务和课程文件。
 
@@ -18,6 +18,18 @@
 - 战绩明细可手动“从统计中排除”，立即重新计算比例、综合等级和分享图；支持撤销及恢复完整统计
 - 原生 Canvas 生成 1080×1440 匿名分享图，支持系统文件分享或直接下载，并预留项目二维码区域
 
+## 使用方法
+
+1. 打开项目的 [最新版本下载页面](https://github.com/billylicn/cityu-tronplugin/releases/latest)。
+2. 在 **Assets** 中下载 `cityu-tronclass-plugin-vX.Y.Z.zip`。
+3. 解压下载的 ZIP 文件；Chrome 不能直接加载 ZIP 压缩包。
+4. 在 Chrome 地址栏打开 `chrome://extensions/`。
+5. 开启右上角的“开发者模式”。
+6. 点击“加载已解压的扩展程序”，选择刚才解压得到的目录。
+7. 在同一浏览器中登录澳门城市大学 TronClass，然后点击工具栏中的扩展图标。
+
+> 更新版本时，下载并解压新的 Release，然后在 `chrome://extensions/` 中移除旧版本并重新加载新目录。
+
 ## 隐私设计
 
 - 纯静态 Manifest V3 扩展，无后端，不上传任何学习数据
@@ -33,7 +45,7 @@
 
 详细说明见 [`privacy.html`](privacy.html)。
 
-## 本地安装
+## 从源码安装
 
 1. 下载或克隆本项目。
 2. 打开 Chrome 的 `chrome://extensions/`。
