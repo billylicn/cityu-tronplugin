@@ -12,7 +12,9 @@
   </p>
 
   <p>
-    <a href="https://github.com/billylicn/cityu-tronplugin/releases/latest"><strong>下载最新版</strong></a>
+    <a href="https://chromewebstore.google.com/detail/llapladneeknmifggglonmcbaolgphdp?utm_source=item-share-cb"><strong>Chrome 商店安装</strong></a>
+    ·
+    <a href="#安装与使用"><strong>下载最新版</strong></a>
     ·
     <a href="#主要功能">主要功能</a>
     ·
@@ -28,8 +30,50 @@
 ## 界面预览
 
 <p align="center">
-  <img src="images/dashboard-overview.png" width="100%" alt="CityU TronClass Plugin 学习总览界面">
+  <strong>一个页面，集中掌握课程中真正需要关注的信息</strong><br>
+  <sub>以下截图均为匿名化示例；点击图片可查看原图。</sub>
 </p>
+
+<p align="center">
+  <a href="images/store-screenshot-01-overview-1280x800.png">
+    <img src="images/store-screenshot-01-overview-1280x800.png" width="100%" alt="CityU TronClass Plugin 学习总览：集中查看待提交任务、出勤异常与课程文件">
+  </a>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href="images/store-screenshot-02-grades-1280x800.png">
+        <img src="images/store-screenshot-02-grades-1280x800.png" width="100%" alt="CityU TronClass Plugin 成绩展示">
+      </a>
+      <br><strong>成绩展示</strong><br>
+      <sub>集中查看已提交作业、问卷与线上考试成绩</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="images/store-screenshot-03-attendance-1280x800.png">
+        <img src="images/store-screenshot-03-attendance-1280x800.png" width="100%" alt="CityU TronClass Plugin 出勤情况">
+      </a>
+      <br><strong>出勤情况</strong><br>
+      <sub>按课程查看出席、迟到、缺席和请假记录</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <a href="images/store-screenshot-04-files-1280x800.png">
+        <img src="images/store-screenshot-04-files-1280x800.png" width="100%" alt="CityU TronClass Plugin 课程文件">
+      </a>
+      <br><strong>课程文件</strong><br>
+      <sub>按课程整理课件附件，提供授权下载入口</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="images/store-screenshot-05-battle-1280x800.png">
+        <img src="images/store-screenshot-05-battle-1280x800.png" width="100%" alt="CityU TronClass Plugin 城大战绩">
+      </a>
+      <br><strong>城大战绩</strong><br>
+      <sub>汇总全部课程的作业与考勤，生成匿名等级报告</sub>
+    </td>
+  </tr>
+</table>
 
 ## 主要功能
 
@@ -46,7 +90,18 @@
 
 ## 安装与使用
 
-### 从 Release 安装（推荐）
+### 从 Chrome 网上应用店安装（推荐）
+
+1. 使用 Chrome 或其他兼容 Chromium 的浏览器打开 [CityU TronClass Plugin 商店页面](https://chromewebstore.google.com/detail/llapladneeknmifggglonmcbaolgphdp?utm_source=item-share-cb)。
+2. 点击页面右上方的 **添加至 Chrome**。
+3. 在浏览器确认窗口中点击 **添加扩展程序**。
+4. 安装完成后，在同一浏览器中登录澳门城市大学 TronClass。
+5. 点击浏览器工具栏中的扩展程序图标；如未显示，可先点击拼图按钮并固定 **CityU TronClass Plugin**。
+6. 点击插件图标打开 Dashboard，即可查看出勤、待提交任务、成绩和课程文件。
+
+> 通过 Chrome 网上应用店安装的版本通常会由浏览器自动更新，无需手动下载或删除旧版本。
+
+### 从 GitHub Release 手动安装
 
 1. 打开 [Releases 最新版本页面](https://github.com/billylicn/cityu-tronplugin/releases/latest)。
 2. 在 **Assets** 中下载 `cityu-tronclass-plugin-vX.Y.Z.zip`。
@@ -59,6 +114,7 @@
 
 > [!IMPORTANT]
 > 更新时下载并解压新的 Release，然后在 `chrome://extensions/` 中移除旧版 CityU TronClass Plugin，再加载新版本目录。删除旧扩展会清除插件的本地缓存、页面布局和忽略设置，但不会修改 TronClass 原站中的课程、作业、考勤或文件数据。
+<<<<<<< HEAD
 
 ### 从源码安装
 
@@ -70,6 +126,8 @@ npm run check
 ```
 
 随后在 `chrome://extensions/` 中加载项目根目录。项目没有运行时依赖或构建步骤，修改后点击扩展的“重新加载”即可。
+=======
+>>>>>>> 414fe0e (update readme)
 
 ## 隐私设计
 
@@ -109,11 +167,6 @@ npm run check
 - 综合等级取缺勤率和缺交率中较高的风险；任一项达到 20% 时为 F。两项都没有有效分母时显示“暂无等级”。
 - 缺勤或缺交记录可从统计口径中排除；排除后同步重新计算数字、比例和等级。
 
-### 课程文件下载边界
-
-- 官方允许下载：调用 `/api/uploads/reference/{referenceId}/blob`，不按扩展名限制文件类型。
-- 允许完整文档预览：实时使用平台为当前会话签发的完整预览文件地址。
-- 无法取得完整授权文件时只保留“查看活动”，不会伪造权限、猜测地址、破解加密、拼接文件或绕过 DRM。
 
 ## 项目结构
 
@@ -129,15 +182,6 @@ npm run check
 ├── privacy.html            # 隐私说明
 └── .github/workflows/      # 自动 Release 工作流
 ```
-
-## 开发与测试
-
-```bash
-npm run check
-npm test
-```
-
-推送与 `manifest.json`、`package.json` 一致的 `vX.Y.Z` 标签后，GitHub Actions 会自动检查、测试、打包并创建正式 Release。Release 只上传可解压加载的 ZIP，不生成 CRX 或 SHA-256 附件。
 
 ## 开源许可与免责声明
 
