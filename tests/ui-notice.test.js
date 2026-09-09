@@ -52,15 +52,29 @@ test("再次点击扩展图标时串行检查声明和启动通知", () => {
   assert.match(script, /startupPromptsPromise/);
 });
 
-test("启动通知支持仅忽略完全相同的内容", () => {
+test("普通启动通知支持长内容和仅忽略完全相同的内容", () => {
   assert.match(html, /id="startupAnnouncementDialog"/);
-  assert.match(html, /id="startupAnnouncementIgnoreButton"/);
-  assert.match(html, /id="startupAnnouncementCloseButton"/);
+  assert.match(html, /id="startupAnnouncementLabel"/);
+  assert.match(html, /id="startupAnnouncementPublishedAt"/);
+  assert.match(html, /id="startupAnnouncementParagraphs"/);
+  assert.match(html, /id="startupAnnouncementItems"/);
+  assert.match(html, /id="startupAnnouncementDontShow"/);
+  assert.match(html, /id="startupAnnouncementCloseButton"[^>]*aria-label="关闭通知"/);
+  assert.match(html, /不再显示这条通知/);
+  assert.match(html, /仅忽略内容完全相同的通知/);
+  assert.doesNotMatch(html, /id="startupAnnouncementIgnoreButton"/);
+  assert.doesNotMatch(html, /announcement-icon/);
+  assert.doesNotMatch(html, /版本通知/);
+  assert.doesNotMatch(html, />知道了</);
   assert.match(html, /id="settingsResetAnnouncementButton"/);
   assert.match(script, /announcementFingerprint\(announcement\)/);
   assert.match(script, /fingerprint === state\.ui\.ignoredAnnouncementFingerprint/);
+  assert.match(script, /startupAnnouncementDontShow\.checked/);
+  assert.match(script, /const shouldRemember = dom\.startupAnnouncementDontShow\.checked/);
   assert.match(script, /ignoredAnnouncementFingerprint: state\.ui\.ignoredAnnouncementFingerprint/);
-  assert.match(script, /CityU TronClass Plugin v0\.3\.6 已发布/);
+  assert.match(script, /欢迎使用 CityU TronClass Plugin/);
+  assert.match(script, /学习总览：集中查看出勤、待提交作业/);
+  assert.doesNotMatch(script, /CityU TronClass Plugin v0\.3\.6 已发布/);
 });
 
 test("用户信息读取失败时提供显著登录入口并保留缓存", () => {

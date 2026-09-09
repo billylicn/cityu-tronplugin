@@ -20,9 +20,20 @@ const UI_PREFERENCES_KEY = "uiPreferences";
 const PROJECT_URL = "https://github.com/billylicn/cityu-tronplugin";
 const LATEST_RELEASE_API = "https://api.github.com/repos/billylicn/cityu-tronplugin/releases/latest";
 const STARTUP_ANNOUNCEMENT = Object.freeze({
-  title: "CityU TronClass Plugin v0.3.6",
-  content: "CityU TronClass Plugin v0.3.6 已发布。你可以通过 GitHub 项目页查看更新说明、下载最新版本或反馈问题。",
-  actionLabel: "查看 GitHub 项目",
+  label: "功能说明",
+  title: "欢迎使用 CityU TronClass Plugin",
+  publishedAt: "",
+  paragraphs: Object.freeze([
+    "CityU TronClass Plugin 会使用你当前的 TronClass 登录状态，在统一界面中整理课程学习信息。"
+  ]),
+  items: Object.freeze([
+    "学习总览：集中查看出勤、待提交作业、其他学习活动和课程文件。",
+    "课程直达：可从任务、出勤和文件项目直接打开对应的 TronClass 页面。",
+    "刷新与缓存：可以关闭自动刷新并使用上次保存在本机的匿名学习缓存。",
+    "城大战绩：由你主动生成全部课程统计，并支持手动排除不参与统计的记录。",
+    "结果仅供辅助，请自行以 TronClass 原页面、课程通知及教师要求为准。"
+  ]),
+  actionLabel: "查看开源项目与使用说明",
   actionUrl: PROJECT_URL
 });
 const USAGE_ACKNOWLEDGEMENT = "我已知本软件可能出现漏报、错报、重复、延迟或无法读取等情况。我会自行以 TronClass 原页面、课程通知及教师要求为准，并自行承担使用本插件造成的所有后果。";
@@ -85,8 +96,9 @@ const dom = Object.fromEntries([
   "battleHomeworkMeter", "battleHomeworkHelp", "battleWarning", "battleFailedCourses", "battleCoverage",
   "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords", "usageNoticeDialog",
   "usageNoticeDontShow", "usageNoticeCopyButton", "usageNoticeAcknowledgement", "usageNoticeMatchStatus",
-  "usageNoticeConfirmButton", "startupAnnouncementDialog", "startupAnnouncementTitle", "startupAnnouncementContent",
-  "startupAnnouncementProjectButton", "startupAnnouncementIgnoreButton", "startupAnnouncementCloseButton",
+  "usageNoticeConfirmButton", "startupAnnouncementDialog", "startupAnnouncementLabel", "startupAnnouncementPublishedAt",
+  "startupAnnouncementTitle", "startupAnnouncementContent", "startupAnnouncementParagraphs", "startupAnnouncementItems",
+  "startupAnnouncementProjectButton", "startupAnnouncementDontShow", "startupAnnouncementCloseButton",
   "settingsShowUsageNotice", "settingsResetAnnouncementButton", "currentVersion", "noticeCurrentVersion", "versionCheckStatus",
   "updateNotice", "latestVersion", "updateCurrentVersion"
 ].map((id) => [id, document.getElementById(id)]));
@@ -175,14 +187,27 @@ async function showStartupAnnouncement() {
   if (!fingerprint || fingerprint === state.ui.ignoredAnnouncementFingerprint) return;
 
   activeAnnouncementFingerprint = fingerprint;
-  dom.startupAnnouncementTitle.textContent = announcement.title;
-  dom.startupAnnouncementContent.textContent = announcement.content;
-  dom.startupAnnouncementProjectButton.textContent = announcement.actionLabel || "查看项目";
-  dom.startupAnnouncementProjectButton.classList.toggle("is-hidden", !announcement.actionUrl);
+  renderStartupAnnouncement(announcement);
+  dom.startupAnnouncementDontShow.checked = false;
 
   announcementPromise = new Promise((resolve) => {
-    const handleClose = () => {
+    const handleClose = async () => {
       dialog.removeEventListener("close", handleClose);
+      const fingerprintToRemember = activeAnnouncementFingerprint;
+      const shouldRemember = dom.startupAnnouncementDontShow.checked;
+      dom.startupAnnouncementDontShow.checked = false;
+
+      if (shouldRemember && fingerprintToRemember) {
+        const previous = state.ui.ignoredAnnouncementFingerprint;
+        state.ui.ignoredAnnouncementFingerprint = fingerprintToRemember;
+        try {
+          await saveUiPreferences();
+        } catch (error) {
+          state.ui.ignoredAnnouncementFingerprint = previous;
+          toast(`通知忽略设置保存失败：${error?.message || String(error)}`, true);
+        }
+      }
+
       announcementPromise = null;
       activeAnnouncementFingerprint = "";
       resolve();
@@ -193,17 +218,32 @@ async function showStartupAnnouncement() {
   return announcementPromise;
 }
 
-async function ignoreStartupAnnouncement() {
-  if (!activeAnnouncementFingerprint) return;
-  const previous = state.ui.ignoredAnnouncementFingerprint;
-  state.ui.ignoredAnnouncementFingerprint = activeAnnouncementFingerprint;
-  try {
-    await saveUiPreferences();
-    dom.startupAnnouncementDialog.close();
-  } catch (error) {
-    state.ui.ignoredAnnouncementFingerprint = previous;
-    toast(`通知忽略设置保存失败：${error?.message || String(error)}`, true);
-  }
+function renderStartupAnnouncement(announcement) {
+  dom.startupAnnouncementLabel.textContent = announcement.label;
+  dom.startupAnnouncementLabel.classList.toggle("is-hidden", !announcement.label);
+
+  dom.startupAnnouncementPublishedAt.textContent = announcement.publishedAt;
+  dom.startupAnnouncementPublishedAt.classList.toggle("is-hidden", !announcement.publishedAt);
+  if (announcement.publishedAt) dom.startupAnnouncementPublishedAt.setAttribute("datetime", announcement.publishedAt);
+  else dom.startupAnnouncementPublishedAt.removeAttribute("datetime");
+
+  dom.startupAnnouncementTitle.textContent = announcement.title;
+  dom.startupAnnouncementParagraphs.replaceChildren(...announcement.paragraphs.map((content) => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = content;
+    return paragraph;
+  }));
+  dom.startupAnnouncementParagraphs.classList.toggle("is-hidden", !announcement.paragraphs.length);
+
+  dom.startupAnnouncementItems.replaceChildren(...announcement.items.map((content) => {
+    const item = document.createElement("li");
+    item.textContent = content;
+    return item;
+  }));
+  dom.startupAnnouncementItems.classList.toggle("is-hidden", !announcement.items.length);
+
+  dom.startupAnnouncementProjectButton.textContent = announcement.actionLabel;
+  dom.startupAnnouncementProjectButton.classList.toggle("is-hidden", !announcement.actionLabel || !announcement.actionUrl);
 }
 
 async function restoreStartupAnnouncement() {
@@ -708,7 +748,6 @@ function bindEvents() {
     const announcement = announcementContent(STARTUP_ANNOUNCEMENT);
     if (announcement?.actionUrl) openUrl(announcement.actionUrl);
   });
-  dom.startupAnnouncementIgnoreButton.addEventListener("click", ignoreStartupAnnouncement);
   dom.startupAnnouncementCloseButton.addEventListener("click", () => dom.startupAnnouncementDialog.close());
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "SHOW_STARTUP_PROMPTS") return false;

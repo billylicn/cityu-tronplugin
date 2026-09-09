@@ -364,19 +364,25 @@
 
   <dialog id="startupAnnouncementDialog" class="announcement-dialog" aria-labelledby="startupAnnouncementTitle" aria-describedby="startupAnnouncementContent">
     <form method="dialog" class="announcement-card">
-      <div class="announcement-icon" aria-hidden="true">↑</div>
-      <div class="announcement-copy">
-        <span class="eyebrow">版本通知</span>
-        <h2 id="startupAnnouncementTitle">CityU TronClass Plugin</h2>
-        <p id="startupAnnouncementContent"></p>
-      </div>
-      <div class="announcement-actions">
-        <button id="startupAnnouncementProjectButton" class="button button-link" type="button">查看 GitHub 项目</button>
-        <div>
-          <button id="startupAnnouncementIgnoreButton" class="button button-secondary" type="button">忽略此通知</button>
-          <button id="startupAnnouncementCloseButton" class="button button-primary" type="button">知道了</button>
+      <header class="announcement-header">
+        <div class="announcement-meta">
+          <span id="startupAnnouncementLabel" class="announcement-label"></span>
+          <time id="startupAnnouncementPublishedAt" class="announcement-date is-hidden"></time>
         </div>
+        <h2 id="startupAnnouncementTitle">CityU TronClass Plugin</h2>
+        <button id="startupAnnouncementCloseButton" class="announcement-close" type="button" aria-label="关闭通知">×</button>
+      </header>
+      <div id="startupAnnouncementContent" class="announcement-content" tabindex="0">
+        <div id="startupAnnouncementParagraphs" class="announcement-paragraphs"></div>
+        <ul id="startupAnnouncementItems" class="announcement-list"></ul>
       </div>
+      <footer class="announcement-actions">
+        <label class="announcement-ignore-control">
+          <input id="startupAnnouncementDontShow" type="checkbox">
+          <span><strong>不再显示这条通知</strong><small>仅忽略内容完全相同的通知，内容更新后会再次展示。</small></span>
+        </label>
+        <button id="startupAnnouncementProjectButton" class="button button-secondary" type="button">查看开源项目与使用说明</button>
+      </footer>
     </form>
   </dialog>
 

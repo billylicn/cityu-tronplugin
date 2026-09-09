@@ -3,47 +3,487 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>隐私说明 · CityU TronClass Plugin</title>
+  <meta name="description" content="CityU TronClass Plugin 隐私权政策，说明扩展如何在本地处理课程、任务、考勤和课程文件数据。">
+  <meta name="color-scheme" content="light">
+  <title>隐私权政策 · CityU TronClass Plugin</title>
   <style>
-    :root { font-family: Inter,"Noto Sans SC","PingFang SC",system-ui,sans-serif; color:#172338; background:#f4f7f9; }
-    body { margin:0; }
-    main { width:min(780px,calc(100% - 40px)); margin:48px auto; background:white; border:1px solid #dfe5ec; border-radius:18px; padding:38px 42px; box-shadow:0 12px 36px rgba(31,45,65,.08); }
-    h1 { margin-top:0; letter-spacing:-.03em; } h2 { margin-top:30px; font-size:18px; }
-    p,li { color:#556276; line-height:1.8; } strong { color:#172338; }
-    .notice { padding:14px 16px; border-radius:10px; background:#e9f7f4; color:#27665e; }
-    code { background:#eef2f6; padding:2px 5px; border-radius:4px; }
+    :root {
+      color-scheme: light;
+      --ink: #142136;
+      --muted: #5e6c80;
+      --line: #dce4ec;
+      --surface: #ffffff;
+      --canvas: #f4f7f9;
+      --blue: #1769e0;
+      --blue-soft: #eaf2ff;
+      --teal: #087d72;
+      --teal-soft: #e7f7f3;
+      --amber: #875400;
+      --amber-soft: #fff5dc;
+      --shadow: 0 18px 55px rgba(27, 47, 72, .09);
+      font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; color: var(--ink); background: var(--canvas); }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    a:hover { text-decoration-thickness: 2px; }
+    p, li, td, th { line-height: 1.75; }
+    p, li { color: var(--muted); }
+    code { padding: 2px 6px; border-radius: 5px; color: #29425f; background: #edf2f7; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid rgba(220, 228, 236, .9);
+      background: rgba(255, 255, 255, .92);
+      backdrop-filter: blur(14px);
+    }
+    .topbar-inner {
+      width: min(1160px, calc(100% - 36px));
+      min-height: 66px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; }
+    .brand img { width: 38px; height: 38px; border-radius: 10px; box-shadow: 0 6px 16px rgba(21, 92, 116, .16); }
+    .brand strong { font-size: 15px; letter-spacing: -.02em; }
+    .project-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--ink);
+      background: white;
+      font-size: 13px;
+      font-weight: 750;
+      text-decoration: none;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+      background:
+        radial-gradient(circle at 10% 20%, rgba(22, 166, 150, .16), transparent 34%),
+        radial-gradient(circle at 90% 10%, rgba(23, 105, 224, .16), transparent 34%),
+        linear-gradient(135deg, #fbfdff, #eff9f7 48%, #eef4ff);
+    }
+    .hero-inner {
+      width: min(1160px, calc(100% - 36px));
+      margin: auto;
+      padding: 70px 0 64px;
+    }
+    .eyebrow { margin: 0 0 12px; color: var(--teal); font-size: 12px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(38px, 6vw, 64px); line-height: 1.04; letter-spacing: -.055em; }
+    .lead { max-width: 800px; margin: 22px 0 0; color: #506077; font-size: 18px; line-height: 1.8; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 26px; }
+    .meta-chip { padding: 7px 11px; border: 1px solid rgba(89, 122, 151, .18); border-radius: 999px; color: #38546e; background: rgba(255,255,255,.72); font-size: 12px; font-weight: 700; }
+
+    .layout {
+      width: min(1160px, calc(100% - 36px));
+      margin: 34px auto 80px;
+      display: grid;
+      grid-template-columns: 238px minmax(0, 1fr);
+      gap: 26px;
+      align-items: start;
+    }
+    .toc {
+      position: sticky;
+      top: 90px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 8px 28px rgba(31,45,65,.05);
+    }
+    .toc strong { display: block; margin-bottom: 9px; font-size: 13px; }
+    .toc a { display: block; padding: 7px 8px; border-radius: 8px; color: var(--muted); font-size: 12px; text-decoration: none; }
+    .toc a:hover { color: var(--blue); background: var(--blue-soft); }
+
+    .content { min-width: 0; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .summary-card {
+      min-height: 124px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: 0 8px 28px rgba(31,45,65,.05);
+    }
+    .summary-card span { display: block; margin-bottom: 8px; color: var(--teal); font-size: 11px; font-weight: 850; letter-spacing: .1em; }
+    .summary-card strong { display: block; font-size: 18px; line-height: 1.45; }
+    .summary-card p { margin: 6px 0 0; font-size: 12px; line-height: 1.6; }
+
+    .section {
+      margin-top: 18px;
+      padding: 30px 32px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      scroll-margin-top: 88px;
+    }
+    .section h2 { margin: 0 0 14px; font-size: 23px; letter-spacing: -.035em; }
+    .section h3 { margin: 25px 0 9px; font-size: 16px; }
+    .section p { margin: 10px 0; }
+    .section ul, .section ol { margin: 10px 0; padding-left: 22px; }
+    .section li + li { margin-top: 7px; }
+    .section strong { color: var(--ink); }
+
+    .notice {
+      padding: 17px 19px;
+      border: 1px solid #b9e1d9;
+      border-radius: 13px;
+      color: #285f59;
+      background: var(--teal-soft);
+    }
+    .notice strong { color: #174e48; }
+    .warning { border-color: #ecd79d; color: #725521; background: var(--amber-soft); }
+    .warning strong { color: #60430d; }
+
+    .table-wrap { margin-top: 16px; overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: #31445c; background: #f6f8fa; font-size: 12px; white-space: nowrap; }
+    td { color: var(--muted); }
+    tr:last-child td { border-bottom: 0; }
+
+    .permission-list { display: grid; gap: 10px; margin-top: 15px; }
+    .permission-item { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 18px; padding: 15px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fafbfd; }
+    .permission-item code { align-self: start; justify-self: start; color: #185cb9; background: var(--blue-soft); font-weight: 750; }
+    .permission-item p { margin: 0; font-size: 13px; }
+
+    .contact-box { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 18px; padding: 18px; border-radius: 13px; background: #f3f7fb; }
+    .contact-box p { margin: 0; font-size: 13px; }
+    .button { flex: 0 0 auto; padding: 10px 14px; border-radius: 10px; color: white; background: var(--blue); font-size: 13px; font-weight: 750; text-decoration: none; }
+
+    footer { width: min(1160px, calc(100% - 36px)); margin: -42px auto 42px; color: #778397; font-size: 12px; text-align: center; }
+
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .toc { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .toc strong { grid-column: 1 / -1; }
+      .summary { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .hero-inner { padding: 50px 0 44px; }
+      .lead { font-size: 16px; }
+      .section { padding: 24px 20px; }
+      .permission-item { grid-template-columns: 1fr; gap: 9px; }
+      .contact-box { align-items: flex-start; flex-direction: column; }
+      .project-link span { display: none; }
+    }
+    @media print {
+      .topbar, .toc { display: none; }
+      body { background: white; }
+      .hero { background: white; }
+      .hero-inner { padding: 30px 0; }
+      .layout { display: block; width: 100%; margin: 0; }
+      .section, .summary-card { box-shadow: none; break-inside: avoid; }
+      footer { margin: 30px auto; }
+    }
   </style>
 </head>
 <body>
-<main>
-  <h1>隐私说明</h1>
-  <p class="notice"><strong>简要说明：</strong>本扩展没有后端，不上传数据。页面设置和经过字段白名单处理的匿名学习缓存保存在浏览器本地；姓名、学号、内部用户 ID、登录凭证和临时文件地址不会被持久化。</p>
-  <h2>数据如何处理</h2>
-  <ul>
-    <li>仅使用浏览器当前的 TronClass 登录会话，读取学生本来就有权查看的内容。</li>
-    <li>匿名缓存可包含课程名称、活动标题、状态、时间、课程或活动标识、正式 TronClass 直达地址、考勤摘要和课程文件元数据。</li>
-    <li>读取当前账号的姓名和学号，仅用于主动联网后的 Dashboard 顶栏账号确认；缓存模式不显示，关闭或刷新页面后不会从缓存恢复。</li>
-    <li>为读取个人出勤，会在内存中短暂使用 TronClass 内部用户 ID，但不会展示或持久化。</li>
-    <li>不会持久化姓名、学号、邮箱、内部用户 ID、Cookie、JWT、登录 bootstrap、请求头或其他身份字段。</li>
-    <li>不会保存短期签名 URL、Blob、文件内容、分享图片或下载内容。</li>
-    <li>“城大战绩”缓存包含匿名统计、明细和手动排除状态；报告分享图默认匿名，不包含姓名和学号。</li>
-    <li>栏目顺序、默认折叠状态、自动刷新开关、使用声明展示偏好和已忽略启动通知的 SHA-256 内容指纹会写入 <code>chrome.storage.local</code> 并长期生效。</li>
-    <li>可在“页面设置”中点击“清除上次数据”，删除学习总览缓存、战绩缓存和记录排除状态，同时保留页面布局及自动刷新设置。</li>
-  </ul>
-  <h2>自动刷新</h2>
-  <p>自动刷新默认开启。关闭后，进入插件、重新加载页面或切换到缓存中不存在的课程范围时不会请求 TronClass；用户主动点击“刷新数据”“生成城大战绩”或“重新生成”时仍会联网。</p>
-  <h2>使用声明</h2>
-  <p>使用声明默认在每次打开插件时展示。用户可勾选“以后不再展示此声明”，该偏好只保存在浏览器本地，并可在“页面设置”中重新开启；关闭展示不影响许可条款和免责声明的适用。</p>
-  <h2>启动通知</h2>
-  <p>启动通知由扩展内置的静态内容提供，不依赖外部通知服务。选择“忽略此通知”时只保存由标题、正文、操作按钮文字和链接生成的 SHA-256 内容指纹，不保存通知正文；其中任意内容变化后，通知会重新展示。用户可在“页面设置”中清除该指纹并重新显示当前通知。</p>
-  <h2>网络请求</h2>
-  <p>扩展只允许访问 <code>tronclass.cityu.edu.mo</code>、课程文件媒体域名 <code>tcmedia.cityu.edu.mo</code>，以及用于读取公开 Release 版本号的 <code>api.github.com</code>。GitHub 更新检查不会发送课程、身份或缓存数据；扩展不包含广告、统计或遥测。</p>
-  <h2>课程文件下载边界</h2>
-  <p>扩展只调用 TronClass 官方下载接口，或使用平台在当前会话中实际签发的完整预览文件地址。不会伪造权限、猜测地址、破解加密或绕过 DRM。</p>
-  <h2>开源与审查</h2>
-  <p>项目以 MIT License 开源。任何人都可以检查源代码、网络域名、缓存字段和所申请的浏览器权限。</p>
-  <h2>免责声明</h2>
-  <p>本项目是非官方学生辅助工具，与澳门城市大学或 TronClass/Wisdom Garden 无隶属关系。平台接口变化可能导致部分功能暂时不可用。</p>
-</main>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="https://github.com/billylicn/cityu-tronplugin" target="_blank" rel="noreferrer">
+        <img src="icons/icon-128.png" alt="CityU TronClass Plugin 图标">
+        <strong>CityU TronClass Plugin</strong>
+      </a>
+      <a class="project-link" href="https://github.com/billylicn/cityu-tronplugin" target="_blank" rel="noreferrer">
+        <span>查看开源项目</span><span aria-hidden="true">↗</span>
+      </a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Privacy Policy</p>
+      <h1>隐私权政策</h1>
+      <p class="lead">本政策说明 CityU TronClass Plugin 如何在用户设备上读取、使用、存储、传输和删除与 TronClass 学习活动有关的数据，以及用户可以如何控制这些处理。</p>
+      <div class="meta-row" aria-label="政策信息">
+        <span class="meta-chip">生效日期：2026 年 9 月 9 日</span>
+        <span class="meta-chip">最后更新：2026 年 9 月 9 日</span>
+        <span class="meta-chip">政策版本：1.0</span>
+        <span class="meta-chip">适用于 Chrome / Chromium 扩展</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <nav class="toc" aria-label="隐私权政策目录">
+      <strong>目录</strong>
+      <a href="#overview">1. 核心说明</a>
+      <a href="#scope">2. 适用范围</a>
+      <a href="#data">3. 处理的数据</a>
+      <a href="#purpose">4. 使用目的</a>
+      <a href="#network">5. 网络与第三方</a>
+      <a href="#permissions">6. 浏览器权限</a>
+      <a href="#storage">7. 本地保存期限</a>
+      <a href="#sharing">8. 分享与披露</a>
+      <a href="#limited-use">9. 有限使用承诺</a>
+      <a href="#security">10. 安全措施</a>
+      <a href="#rights">11. 用户控制</a>
+      <a href="#changes">12. 政策变更</a>
+      <a href="#contact">13. 联系方式</a>
+    </nav>
+
+    <main class="content">
+      <div class="summary" aria-label="隐私摘要">
+        <article class="summary-card">
+          <span>无开发者后端</span>
+          <strong>学习数据不会发送给作者</strong>
+          <p>所有聚合与统计均在扩展页面和用户浏览器内完成。</p>
+        </article>
+        <article class="summary-card">
+          <span>本地可控</span>
+          <strong>缓存可随时清除</strong>
+          <p>用户可以关闭自动刷新、删除本地学习缓存或卸载扩展。</p>
+        </article>
+        <article class="summary-card">
+          <span>用途受限</span>
+          <strong>无广告、分析或画像</strong>
+          <p>数据不用于广告、营销、出售、信用评估或与功能无关的用途。</p>
+        </article>
+      </div>
+
+      <section id="overview" class="section">
+        <h2>1. 核心说明</h2>
+        <p class="notice"><strong>重要区分：</strong>本扩展会在用户设备上“处理”学习数据，但不会把课程、任务、考勤、姓名或学号发送至作者或作者控制的服务器。本扩展没有开发者后端、用户账号系统、广告 SDK、统计 SDK或遥测服务。</p>
+        <p>扩展使用用户当前已登录的 TronClass 会话，直接向澳门城市大学 TronClass 及其课程文件媒体域名发出请求，以向用户展示其本来就有权查看的内容。用户的浏览器会按照网站正常机制附带登录会话信息；扩展不会读取、复制或保存 Cookie、密码或 JWT。</p>
+        <p>本政策中的“本地缓存”是指保存在当前 Chrome 浏览器配置文件的 <code>chrome.storage.local</code> 中的数据。“去除直接身份字段”不代表课程名称、活动标题或记录组合在任何情况下都绝对无法识别用户，因此这些数据仍应由用户妥善保护。</p>
+      </section>
+
+      <section id="scope" class="section">
+        <h2>2. 适用范围与责任主体</h2>
+        <p>本政策适用于开源浏览器扩展 <strong>CityU TronClass Plugin</strong>。项目维护者为 GitHub 用户 <strong>billylicn</strong>。本项目是非官方社区工具，与澳门城市大学、TronClass 或 Wisdom Garden Limited 不存在隶属、授权、认可或代理关系。</p>
+        <p>TronClass、课程文件媒体服务、GitHub、Chrome 浏览器和 Chrome 网上应用店对其各自服务中的数据处理适用其自己的条款与隐私政策。本政策仅说明本扩展自身的处理行为。</p>
+      </section>
+
+      <section id="data" class="section">
+        <h2>3. 本扩展处理的数据</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>数据类别</th><th>具体内容</th><th>处理位置与保存方式</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>账号确认信息</strong></td>
+                <td>当前登录账号的姓名、学号。</td>
+                <td>仅在主动联网成功后的 Dashboard 页面内存中用于账号确认；不写入本地缓存，页面关闭或重新加载后不从缓存恢复。</td>
+              </tr>
+              <tr>
+                <td><strong>内部技术标识</strong></td>
+                <td>TronClass 内部用户 ID。</td>
+                <td>仅在内存中用于请求当前用户的出勤记录；不展示、不持久化。</td>
+              </tr>
+              <tr>
+                <td><strong>课程与学习活动</strong></td>
+                <td>课程名称和标识、学期信息、活动标题和标识、活动类型、开始与截止时间、完成和提交状态、分组标记、正式直达地址。</td>
+                <td>用于学习总览；经字段白名单处理后可保存在本地缓存。</td>
+              </tr>
+              <tr>
+                <td><strong>出勤数据</strong></td>
+                <td>点名记录时间、状态、课程、出席、迟到、缺席、事假、病假、其他状态及课程点名设置。</td>
+                <td>用于出勤展示和城大战绩；经字段白名单处理后可保存在本地缓存。</td>
+              </tr>
+              <tr>
+                <td><strong>作业与报告数据</strong></td>
+                <td>作业提交状态、缺交记录、统计数量、比例、等级、用户手动排除的记录键。</td>
+                <td>用于任务列表和城大战绩；可保存在本地缓存。分享图在当前页面临时生成。</td>
+              </tr>
+              <tr>
+                <td><strong>课程文件元数据</strong></td>
+                <td>文件名、类型、扩展名、大小、发布日期、上传或引用标识、是否允许下载或预览。</td>
+                <td>元数据可保存在本地缓存；文件内容、Blob 和短期签名地址不进入缓存。</td>
+              </tr>
+              <tr>
+                <td><strong>页面偏好</strong></td>
+                <td>栏目顺序、默认折叠状态、自动刷新设置、使用声明设置、被忽略任务、通知内容指纹。</td>
+                <td>保存在 <code>chrome.storage.local</code>，用于在下次打开时恢复用户选择。</td>
+              </tr>
+              <tr>
+                <td><strong>公开版本信息</strong></td>
+                <td>GitHub Releases 返回的最新公开版本号。</td>
+                <td>仅用于提示新版本，不附带课程或身份数据，不作为学习数据缓存保存。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>本扩展不会主动收集或持久化的内容</h3>
+        <ul>
+          <li>TronClass 密码、Cookie 内容、JWT、完整请求头、登录 bootstrap 原始数据；</li>
+          <li>邮箱、电话号码、证件号码、支付资料、精确地理位置；</li>
+          <li>短期签名文件 URL、文件 Blob、下载后的文件内容或分享图片；</li>
+          <li>TronClass 以外网站的浏览历史、搜索记录或页面内容；</li>
+          <li>广告标识、跨网站追踪标识、分析事件或崩溃遥测。</li>
+        </ul>
+      </section>
+
+      <section id="purpose" class="section">
+        <h2>4. 数据处理目的</h2>
+        <p>本扩展仅在提供用户明确可见的核心功能所必要的范围内处理数据，包括：</p>
+        <ol>
+          <li>聚合展示用户有权访问的进行中或历史课程；</li>
+          <li>展示个人出勤摘要、异常次数和点名明细；</li>
+          <li>判断作业、讨论、问卷、测验、互动和分组学习的完成状态；</li>
+          <li>展示待提交、即将开始和逾期项目及其原站直达入口；</li>
+          <li>展示课程文件并响应用户主动发起的下载或预览另存；</li>
+          <li>在本地生成城大战绩统计和匿名分享图；</li>
+          <li>恢复用户设置和本地缓存，以及检查公开发布的新版本。</li>
+        </ol>
+        <p>在适用法律要求的范围内，上述处理以用户主动安装、确认声明、使用扩展及主动请求相关功能为基础。用户可以随时停止使用、关闭自动刷新、清除缓存或卸载扩展。</p>
+      </section>
+
+      <section id="network" class="section">
+        <h2>5. 网络请求与第三方服务</h2>
+        <p>扩展的网络访问被限制在以下 HTTPS 域名：</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>域名</th><th>用途</th><th>会发送什么</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>tronclass.cityu.edu.mo</code></td>
+                <td>读取课程、学习活动、出勤和课程文件元数据；打开登录页和课程直达页面。</td>
+                <td>浏览器会向 TronClass 发送正常的 HTTPS 请求，并按网站机制附带当前登录会话。作者不会接收这些请求。</td>
+              </tr>
+              <tr>
+                <td><code>tcmedia.cityu.edu.mo</code></td>
+                <td>在用户主动操作后获取平台授权的课程文件。</td>
+                <td>仅发送下载完整文件所需的 HTTPS 请求和平台签发的短期授权参数；签名地址不持久化。</td>
+              </tr>
+              <tr>
+                <td><code>api.github.com</code></td>
+                <td>读取项目最新公开 Release 的版本号。</td>
+                <td>不发送姓名、学号、课程、任务、考勤或本地缓存。GitHub 仍可能按其服务规则接收 IP 地址、User-Agent 等标准网络连接信息。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>点击“查看 GitHub 项目”、登录入口或课程直达入口时，扩展会根据用户操作在新标签页打开相应网站。目标网站后续的数据处理不由本扩展控制。</p>
+      </section>
+
+      <section id="permissions" class="section">
+        <h2>6. 浏览器权限及理由</h2>
+        <p>扩展仅申请当前功能所需的权限，不为未来可能加入的功能预先申请权限。</p>
+        <div class="permission-list">
+          <div class="permission-item">
+            <code>downloads</code>
+            <p>在用户主动点击下载或预览另存后，通过 Chrome 下载管理器保存 TronClass 课程文件，并尽可能保留原文件名。扩展不会自动批量下载，除非用户明确点击课程内的批量下载操作。</p>
+          </div>
+          <div class="permission-item">
+            <code>tabs</code>
+            <p>打开或聚焦扩展 Dashboard，并在用户点击后打开 TronClass 登录页、课程详情和项目 GitHub 页面。扩展不读取一般浏览历史，也不监控用户在其他网站的活动。</p>
+          </div>
+          <div class="permission-item">
+            <code>storage</code>
+            <p>在当前浏览器本地保存页面设置、经字段白名单处理的学习缓存、战绩缓存、忽略与排除状态，以及通知内容指纹。</p>
+          </div>
+          <div class="permission-item">
+            <code>host permissions</code>
+            <p>仅允许扩展向 TronClass、课程文件媒体域名和 GitHub 公开 Release API 发出实现上述功能所需的 HTTPS 请求。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="storage" class="section">
+        <h2>7. 本地存储、保存期限与删除</h2>
+        <ul>
+          <li><strong>页面内存数据：</strong>姓名、学号、内部用户 ID、短期签名 URL 和临时分享图仅在相关页面或操作期间存在，不写入扩展本地缓存。</li>
+          <li><strong>学习总览缓存：</strong>保留至下一次成功刷新覆盖、用户点击“清除上次数据”、清除扩展数据或卸载扩展。</li>
+          <li><strong>城大战绩缓存：</strong>保留至下一次成功生成覆盖、用户清除数据或卸载扩展；重新生成会清空原有手动排除状态。</li>
+          <li><strong>页面设置：</strong>长期保留至用户修改、恢复、清除扩展数据或卸载扩展。</li>
+          <li><strong>已下载文件：</strong>由 Chrome 保存到用户选择或浏览器配置的下载位置，删除操作由用户自行完成。</li>
+        </ul>
+        <p class="warning"><strong>设备安全提示：</strong>本地缓存位于用户的 Chrome 配置文件中。能够访问该操作系统账号、浏览器配置文件或设备备份的人，可能有机会接触这些数据。请使用设备锁、独立浏览器账号和适当的系统安全措施。</p>
+      </section>
+
+      <section id="sharing" class="section">
+        <h2>8. 数据分享、披露与出售</h2>
+        <p>作者不接收、出售、出租或交易用户的学习数据，也不会把这些数据提供给广告商、数据经纪商或分析平台。</p>
+        <p>以下情况可能发生由用户控制或法律要求的数据传输：</p>
+        <ul>
+          <li>用户点击“一键分享图”并在系统分享面板中选择第三方应用时，生成的图片会发送至用户选择的接收方；扩展不会替用户选择接收方。</li>
+          <li>用户下载课程文件时，文件会由 TronClass 或其媒体域名传输至用户设备。</li>
+          <li>如适用法律、法院命令或有权机关依法要求，相关主体可能需要依法处理数据；但由于作者没有接收或保存用户学习数据，通常没有可供作者披露的服务器副本。</li>
+        </ul>
+        <p>分享图默认不包含姓名和学号，但可能包含统计数字、等级、课程覆盖数量以及有限的缺勤或缺交记录。用户在分享前应自行检查图片内容，并对其选择的分享对象负责。</p>
+      </section>
+
+      <section id="limited-use" class="section">
+        <h2>9. Chrome Web Store 用户数据有限使用承诺</h2>
+        <p>CityU TronClass Plugin 对通过 Chrome API、TronClass 页面和网络请求取得的数据的使用，将遵守 Chrome Web Store 用户数据政策，包括有限使用要求：</p>
+        <ul>
+          <li>数据仅用于提供或改进本政策和商店页面中明确披露的用户可见功能；</li>
+          <li>不会用于个性化广告、再营销、兴趣画像、信用评估、保险或与学习辅助无关的目的；</li>
+          <li>不会出售用户数据，也不会为广告、数据经纪或其他商业目的转移用户数据；</li>
+          <li>作者及贡献者不会查看用户的课程、任务、考勤或文件内容；只有用户主动向项目维护者提供特定信息以请求技术支持时，维护者才会接触用户明确提供的内容；</li>
+          <li>任何必要传输均通过 HTTPS，并限制为实现用户主动使用的功能所必需的目标域名和数据范围。</li>
+        </ul>
+      </section>
+
+      <section id="security" class="section">
+        <h2>10. 安全措施与风险</h2>
+        <p>项目采取的措施包括：Manifest V3、静态本地代码、禁止远程脚本、HTTPS 域名白名单、字段白名单缓存、短期签名 URL 不落盘、无广告与遥测、开源代码审查，以及仅在用户操作后执行下载和分享。</p>
+        <p>扩展不会伪造下载权限、猜测隐藏地址、绕过访问控制、破解加密或 DRM，也不会尝试访问当前账号无权查看的课程内容。</p>
+        <p>任何软件、浏览器存储和网络传输均无法保证绝对安全。用户应保持 Chrome 和扩展为最新版本，并避免在公共或不受信任设备上保存学习缓存。</p>
+      </section>
+
+      <section id="rights" class="section">
+        <h2>11. 用户选择与控制</h2>
+        <p>用户可以通过以下方式控制扩展处理的数据：</p>
+        <ul>
+          <li>关闭“自动刷新”，阻止打开插件或刷新页面时自动请求 TronClass；</li>
+          <li>使用“刷新数据”“生成城大战绩”等按钮决定何时主动联网；</li>
+          <li>忽略或恢复特定任务，从战绩统计中排除或恢复特定记录；</li>
+          <li>在“页面设置”中点击“清除上次数据”，删除学习总览和战绩缓存；</li>
+          <li>通过 Chrome 的扩展管理页清除扩展数据或卸载扩展；</li>
+          <li>在分享图片前取消分享，或从用户选择的第三方应用中删除已分享内容。</li>
+        </ul>
+        <p>由于作者没有服务器端用户数据库，作者通常无法代用户查询、导出、更正或删除浏览器本地缓存。上述操作应在安装扩展的浏览器和设备上完成。</p>
+      </section>
+
+      <section id="changes" class="section">
+        <h2>12. 政策变更</h2>
+        <p>当扩展的数据类型、使用目的、权限、第三方服务或保存方式发生实质变化时，本政策将相应更新，并修改页面顶部的“最后更新”日期。需要新增权限的版本还可能由 Chrome 向用户显示权限变更提示。</p>
+        <p>如变更会实质影响用户数据处理，项目将通过扩展启动通知、GitHub Release 说明或项目页面进行提示。继续使用更新后的扩展前，用户应阅读最新政策。</p>
+      </section>
+
+      <section id="contact" class="section">
+        <h2>13. 联系方式</h2>
+        <p>如对本政策、扩展权限或数据处理方式有疑问，可以通过公开的 GitHub Issues 联系项目维护者。提出问题时，请勿提交密码、Cookie、JWT、包含个人信息的完整页面截图或未经处理的课程文件。</p>
+        <div class="contact-box">
+          <p><strong>项目：</strong>CityU TronClass Plugin<br><strong>维护者：</strong>billylicn<br><strong>联系渠道：</strong>GitHub Issues</p>
+          <a class="button" href="https://github.com/billylicn/cityu-tronplugin/issues" target="_blank" rel="noreferrer">提交隐私问题</a>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>法律与政策参考</h2>
+        <p>本政策旨在以清晰、透明和与实际代码行为一致的方式说明数据处理，并参考澳门特别行政区第 8/2005 号法律《个人资料保护法》及 Chrome Web Store 用户数据政策。不同地区的强制性法律如有更高要求，以适用法律为准。</p>
+        <p class="warning"><strong>准确性声明：</strong>本政策描述当前公开版本的设计和预期行为。第三方平台接口、浏览器行为或用户自行修改的开源版本可能有所不同；自行编译或修改版本的发布者应为其实际数据处理行为提供相应政策。</p>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    © 2026 CityU TronClass Plugin 开源项目 · MIT License · 本页面不包含广告、分析脚本或远程代码
+  </footer>
 </body>
 </html>

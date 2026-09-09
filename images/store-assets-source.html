@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CityU TronClass Plugin Store Assets</title>
+<style>
+  :root {
+    --ink: #11233a;
+    --muted: #5d6d82;
+    --blue: #1769e0;
+    --teal: #087d72;
+    --pale: #eef7f7;
+  }
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  body {
+    font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--ink);
+    background: #eef4f7;
+  }
+  .asset { display: none; width: 100vw; height: 100vh; overflow: hidden; }
+  body[data-type="screenshot"] .asset-screenshot,
+  body[data-type="small"] .asset-small,
+  body[data-type="marquee"] .asset-marquee { display: block; }
+
+  .asset-screenshot {
+    background: #f4f7f9;
+  }
+  .asset-screenshot img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    object-position: 50% 50%;
+  }
+
+  .promo {
+    position: relative;
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(89, 199, 188, .31), transparent 31%),
+      radial-gradient(circle at 92% 14%, rgba(85, 148, 255, .34), transparent 33%),
+      linear-gradient(135deg, #f8fcff 0%, #edf8f6 47%, #e8f0ff 100%);
+  }
+  .promo::before,
+  .promo::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(1px);
+    z-index: -1;
+  }
+  .promo::before {
+    width: 36%;
+    aspect-ratio: 1;
+    left: -13%;
+    bottom: -35%;
+    background: rgba(12, 143, 133, .1);
+  }
+  .promo::after {
+    width: 32%;
+    aspect-ratio: 1;
+    right: -10%;
+    top: -32%;
+    background: rgba(23, 105, 224, .11);
+  }
+  .brand-row { display: flex; align-items: center; }
+  .brand-icon {
+    display: block;
+    border-radius: 24%;
+    box-shadow: 0 12px 32px rgba(12, 77, 100, .18);
+  }
+  .brand-name { font-weight: 850; letter-spacing: -.035em; }
+  .brand-kicker {
+    color: var(--teal);
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+  .headline { margin: 0; letter-spacing: -.055em; line-height: 1.08; }
+  .headline em {
+    color: transparent;
+    font-style: normal;
+    background: linear-gradient(100deg, #087d72 8%, #1769e0 96%);
+    background-clip: text;
+    -webkit-background-clip: text;
+  }
+  .tagline { color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; }
+  .chip {
+    color: #31506d;
+    background: rgba(255,255,255,.72);
+    border: 1px solid rgba(105, 137, 165, .22);
+    box-shadow: 0 5px 18px rgba(52, 80, 105, .06);
+    font-weight: 720;
+  }
+  .screen-card {
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.9);
+    background: #fff;
+    box-shadow: 0 30px 70px rgba(31, 64, 94, .22);
+  }
+  .screen-card img { width: 100%; height: 100%; display: block; object-fit: cover; }
+
+  /* 440 × 280 */
+  .asset-small { padding: 24px 24px 20px; }
+  .asset-small .brand-row { gap: 10px; }
+  .asset-small .brand-icon { width: 42px; height: 42px; }
+  .asset-small .brand-name { font-size: 18px; }
+  .asset-small .small-grid {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1.12fr .88fr;
+    align-items: center;
+    gap: 15px;
+  }
+  .asset-small .copy { min-width: 0; }
+  .asset-small .brand-kicker { margin: 15px 0 5px; font-size: 9px; }
+  .asset-small .headline { font-size: 28px; }
+  .asset-small .tagline { margin: 9px 0 12px; font-size: 12px; line-height: 1.55; }
+  .asset-small .chips { gap: 5px; }
+  .asset-small .chip { padding: 5px 8px; border-radius: 999px; font-size: 9px; }
+  .asset-small .screen-card {
+    width: 188px;
+    height: 174px;
+    border-radius: 15px;
+    transform: rotate(2.4deg) translateX(2px);
+  }
+  .asset-small .screen-card img { object-position: 48% 22%; }
+
+  /* 1400 × 560 */
+  .asset-marquee { padding: 54px 72px; }
+  .asset-marquee .marquee-grid {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 43% 57%;
+    align-items: center;
+    gap: 40px;
+  }
+  .asset-marquee .brand-row { gap: 16px; }
+  .asset-marquee .brand-icon { width: 68px; height: 68px; }
+  .asset-marquee .brand-name { font-size: 31px; }
+  .asset-marquee .brand-kicker { margin: 28px 0 10px; font-size: 13px; }
+  .asset-marquee .headline { max-width: 570px; font-size: 61px; }
+  .asset-marquee .tagline { max-width: 540px; margin: 18px 0 22px; font-size: 19px; line-height: 1.65; }
+  .asset-marquee .chips { gap: 10px; }
+  .asset-marquee .chip { padding: 9px 14px; border-radius: 999px; font-size: 14px; }
+  .asset-marquee .screen-wrap { position: relative; height: 100%; display: grid; place-items: center; }
+  .asset-marquee .screen-card {
+    width: 760px;
+    height: 412px;
+    border-radius: 24px;
+    transform: perspective(1300px) rotateY(-5deg) rotateX(1.8deg);
+  }
+  .asset-marquee .screen-card img { object-position: 50% 25%; }
+  .asset-marquee .mini-card {
+    position: absolute;
+    left: -8px;
+    bottom: 30px;
+    width: 215px;
+    padding: 17px 18px;
+    border: 1px solid rgba(255,255,255,.95);
+    border-radius: 18px;
+    background: rgba(255,255,255,.92);
+    box-shadow: 0 18px 42px rgba(31,64,94,.18);
+    backdrop-filter: blur(12px);
+  }
+  .asset-marquee .mini-card span { display: block; color: #647084; font-size: 13px; }
+  .asset-marquee .mini-card strong { display: block; margin-top: 5px; color: #1769e0; font-size: 28px; }
+</style>
+</head>
+<body>
+  <main class="asset asset-screenshot" aria-label="插件界面截图">
+    <img src="dashboard-overview.png" alt="CityU TronClass Plugin 学习总览界面">
+  </main>
+
+  <main class="asset asset-small promo" aria-label="小型宣传图块">
+    <div class="small-grid">
+      <section class="copy">
+        <div class="brand-row">
+          <img class="brand-icon" src="../icons/icon-128.png" alt="">
+          <div class="brand-name">CityU TronClass Plugin</div>
+        </div>
+        <div class="brand-kicker">你的学习总览</div>
+        <h1 class="headline">重要事项<br><em>一页掌握</em></h1>
+        <p class="tagline">聚合出勤、待提交任务与课程文件，保留原站直达入口。</p>
+        <div class="chips">
+          <span class="chip">出勤统计</span>
+          <span class="chip">任务提醒</span>
+          <span class="chip">文件下载</span>
+        </div>
+      </section>
+      <div class="screen-card">
+        <img src="dashboard-overview.png" alt="">
+      </div>
+    </div>
+  </main>
+
+  <main class="asset asset-marquee promo" aria-label="顶部宣传图块">
+    <div class="marquee-grid">
+      <section class="copy">
+        <div class="brand-row">
+          <img class="brand-icon" src="../icons/icon-128.png" alt="">
+          <div class="brand-name">CityU TronClass Plugin</div>
+        </div>
+        <div class="brand-kicker">澳门城市大学 TronClass 学习助手</div>
+        <h1 class="headline">课程动态<br><em>从此一目了然</em></h1>
+        <p class="tagline">在统一界面查看出勤、待提交任务和课程文件。纯静态、开源、数据留在你的浏览器。</p>
+        <div class="chips">
+          <span class="chip">出勤异常</span>
+          <span class="chip">剩余完成时间</span>
+          <span class="chip">课程文件</span>
+          <span class="chip">城大战绩</span>
+        </div>
+      </section>
+      <section class="screen-wrap">
+        <div class="screen-card">
+          <img src="dashboard-overview.png" alt="">
+        </div>
+        <div class="mini-card">
+          <span>全部课程集中查看</span>
+          <strong>7 门课程</strong>
+        </div>
+      </section>
+    </div>
+  </main>
+<script>
+  const type = new URLSearchParams(location.search).get('type');
+  document.body.dataset.type = ['screenshot', 'small', 'marquee'].includes(type) ? type : 'marquee';
+</script>
+</body>
+</html>
