@@ -7,13 +7,14 @@ const script = readFileSync(new URL("../dashboard.js", import.meta.url), "utf8")
 const background = readFileSync(new URL("../background.js", import.meta.url), "utf8");
 const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
 
-test("插件默认先展示使用与责任声明", () => {
+test("插件默认依次展示使用声明与启动通知", () => {
   assert.match(html, /id="usageNoticeDialog"/);
   assert.match(html, /软件使用方法/);
   assert.match(html, /MIT License/);
   assert.match(html, /不为任何漏报、错报/);
   assert.match(html, /使用者必须自行以 TronClass 原页面/);
-  assert.match(script, /await loadUiPreferences\(\);[\s\S]*await showUsageNotice\(\);[\s\S]*await initialize\(\);/);
+  assert.match(script, /await loadUiPreferences\(\);[\s\S]*await showStartupPrompts\(\);[\s\S]*await initialize\(\);/);
+  assert.match(script, /await showUsageNotice\(\);[\s\S]*await showStartupAnnouncement\(\);/);
   assert.match(script, /addEventListener\("cancel", \(event\) => event\.preventDefault\(\)\)/);
 });
 
@@ -44,10 +45,32 @@ test("声明匹配后仍须用户手动确认", () => {
   assert.match(script, /if \(!usageNoticeConfirmed\)[\s\S]*dialog\.showModal\(\)/);
 });
 
-test("再次点击扩展图标时按设置决定是否重新展示声明", () => {
-  assert.match(background, /sendMessage\(tab\.id, \{ type: "SHOW_USAGE_NOTICE" \}\)/);
-  assert.match(script, /message\?\.type !== "SHOW_USAGE_NOTICE"/);
+test("再次点击扩展图标时串行检查声明和启动通知", () => {
+  assert.match(background, /sendMessage\(tab\.id, \{ type: "SHOW_STARTUP_PROMPTS" \}\)/);
+  assert.match(script, /message\?\.type !== "SHOW_STARTUP_PROMPTS"/);
   assert.match(script, /state\.ui\.suppressUsageNotice \|\|/);
+  assert.match(script, /startupPromptsPromise/);
+});
+
+test("启动通知支持仅忽略完全相同的内容", () => {
+  assert.match(html, /id="startupAnnouncementDialog"/);
+  assert.match(html, /id="startupAnnouncementIgnoreButton"/);
+  assert.match(html, /id="startupAnnouncementCloseButton"/);
+  assert.match(html, /id="settingsResetAnnouncementButton"/);
+  assert.match(script, /announcementFingerprint\(announcement\)/);
+  assert.match(script, /fingerprint === state\.ui\.ignoredAnnouncementFingerprint/);
+  assert.match(script, /ignoredAnnouncementFingerprint: state\.ui\.ignoredAnnouncementFingerprint/);
+  assert.match(script, /CityU TronClass Plugin v0\.3\.6 已发布/);
+});
+
+test("用户信息读取失败时提供显著登录入口并保留缓存", () => {
+  assert.match(html, /id="authBanner"/);
+  assert.match(html, /id="authLoginButton"/);
+  assert.match(html, /id="authRefreshButton"/);
+  assert.match(html, /id="loginRefreshButton"/);
+  assert.match(script, /const student = await requireCurrentStudent\(\);[\s\S]*const courses = await api\.getCourses\(\);/);
+  assert.match(script, /applyDashboardCache\(fallbackCache\);[\s\S]*showAuthenticationBanner/);
+  assert.match(script, /clearAuthenticationPrompt\(\)/);
 });
 
 test("插件界面提供 GitHub 项目、当前版本和更新入口", () => {

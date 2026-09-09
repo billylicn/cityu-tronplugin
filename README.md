@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icon-128.png" width="92" height="92" alt="CityU TronClass Plugin 图标">
   <h1>CityU TronClass Plugin</h1>
-  <p><strong>面向澳门城市大学学生的非官方 TronClass 学习辅助扩展</strong></p>
+  <p><strong>面向澳门城市大学学生的非官方 TronClass 学习辅助Chrome插件</strong></p>
   <p>把出勤、待提交任务、学习活动和课程文件集中到一个清晰的 Dashboard。</p>
 
   <p>
@@ -74,12 +74,13 @@ npm run check
 - 纯静态 Chrome Manifest V3 扩展，无后端，不上传学习数据。
 - 仅请求 `tronclass.cityu.edu.mo`、`tcmedia.cityu.edu.mo`，以及用于检查公开 Release 版本的 `api.github.com`。
 - GitHub 更新检查只读取公开 Release 版本号，不发送课程、身份或缓存数据。
-- `chrome.storage.local` 只保存页面设置、匿名学习缓存、匿名战绩缓存和记录排除状态。
+- `chrome.storage.local` 只保存页面设置、匿名学习缓存、匿名战绩缓存、记录排除状态，以及已忽略启动通知的 SHA-256 内容指纹。
 - 不持久化姓名、学号、邮箱、内部用户 ID、Cookie、JWT、登录 bootstrap、请求头或其他身份字段。
 - 不保存临时签名 URL、Blob、文件内容、分享图片或下载内容。
 - 自动刷新关闭后，打开插件、刷新页面或切换到无缓存课程范围时不会请求 TronClass。
 - 使用声明默认每次打开时展示；用户可选择“不再展示”，该偏好只保存在浏览器本地，并可在页面设置中恢复。
-- 可在“页面设置”中清除匿名学习缓存；布局、折叠、自动刷新和声明展示偏好会保留。
+- 启动通知由扩展内置静态内容提供；选择“忽略此通知”时只保存当前通知的内容指纹。标题、正文、按钮或链接变化后会作为新通知重新展示。
+- 可在“页面设置”中重新显示已忽略通知，或清除匿名学习缓存；布局、折叠、自动刷新和声明展示偏好会保留。
 
 详细说明见 [`privacy.html`](privacy.html)。
 

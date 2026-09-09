@@ -1,5 +1,7 @@
 const DASHBOARD_URL = chrome.runtime.getURL("dashboard.html");
-const ALLOWED_OPEN_ORIGINS = new Set(["https://tronclass.cityu.edu.mo"]);
+const TRONCLASS_ORIGIN = "https://tronclass.cityu.edu.mo";
+const PROJECT_ORIGIN = "https://github.com";
+const PROJECT_PATH = "/billylicn/cityu-tronplugin";
 const ALLOWED_DOWNLOAD_ORIGINS = new Set([
   "https://tronclass.cityu.edu.mo",
   "https://tcmedia.cityu.edu.mo"
@@ -38,9 +40,9 @@ async function openOrFocusDashboard() {
     await chrome.tabs.update(tab.id, { active: true });
     if (tab.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
     try {
-      await chrome.tabs.sendMessage(tab.id, { type: "SHOW_USAGE_NOTICE" });
+      await chrome.tabs.sendMessage(tab.id, { type: "SHOW_STARTUP_PROMPTS" });
     } catch {
-      // 页面仍在加载时由 Dashboard 自己展示声明。
+      // 页面仍在加载时由 Dashboard 自己展示启动提示。
     }
     return;
   }
@@ -49,7 +51,9 @@ async function openOrFocusDashboard() {
 
 async function openSafeUrl(rawUrl) {
   const url = new URL(rawUrl);
-  if (!ALLOWED_OPEN_ORIGINS.has(url.origin)) throw new Error("已阻止非 TronClass 地址");
+  const isTronClass = url.origin === TRONCLASS_ORIGIN;
+  const isProjectPage = url.origin === PROJECT_ORIGIN && (url.pathname === PROJECT_PATH || url.pathname.startsWith(`${PROJECT_PATH}/`));
+  if (!isTronClass && !isProjectPage) throw new Error("已阻止未授权地址");
   await chrome.tabs.create({ url: url.href });
 }
 

@@ -64,6 +64,18 @@
         <a class="button button-primary update-notice-button" href="https://github.com/billylicn/cityu-tronplugin/releases/latest" target="_blank" rel="noreferrer">前往更新</a>
       </aside>
 
+      <aside id="authBanner" class="auth-banner is-hidden" role="alert" aria-live="assertive">
+        <div class="auth-banner-icon" aria-hidden="true">!</div>
+        <div class="auth-banner-copy">
+          <strong>需要登录 TronClass</strong>
+          <span id="authBannerMessage">无法读取当前用户信息。请先登录 TronClass，然后重新刷新数据。</span>
+        </div>
+        <div class="auth-banner-actions">
+          <button id="authLoginButton" class="button button-secondary" type="button">前往 TronClass 登录</button>
+          <button id="authRefreshButton" class="button button-primary" type="button">登录后刷新</button>
+        </div>
+      </aside>
+
       <div id="overviewPage" class="page-view">
         <section class="control-panel" aria-label="课程范围">
           <div class="scope-switch" role="group" aria-label="课程范围">
@@ -78,10 +90,13 @@
 
         <section id="loginPanel" class="login-panel is-hidden">
           <div>
-            <h2>需要登录 TronClass</h2>
+            <h2 id="loginTitle">需要登录 TronClass</h2>
             <p id="loginMessage">请先在浏览器中登录澳门城市大学 TronClass，然后返回刷新。</p>
           </div>
-          <button id="loginButton" class="button button-primary" type="button">打开 TronClass 登录页</button>
+          <div class="login-panel-actions">
+            <button id="loginButton" class="button button-secondary" type="button">打开 TronClass 登录页</button>
+            <button id="loginRefreshButton" class="button button-primary" type="button">我已登录，重新刷新</button>
+          </div>
         </section>
 
         <section id="loadingPanel" class="loading-panel">
@@ -346,6 +361,25 @@
     </form>
   </dialog>
 
+
+  <dialog id="startupAnnouncementDialog" class="announcement-dialog" aria-labelledby="startupAnnouncementTitle" aria-describedby="startupAnnouncementContent">
+    <form method="dialog" class="announcement-card">
+      <div class="announcement-icon" aria-hidden="true">↑</div>
+      <div class="announcement-copy">
+        <span class="eyebrow">版本通知</span>
+        <h2 id="startupAnnouncementTitle">CityU TronClass Plugin</h2>
+        <p id="startupAnnouncementContent"></p>
+      </div>
+      <div class="announcement-actions">
+        <button id="startupAnnouncementProjectButton" class="button button-link" type="button">查看 GitHub 项目</button>
+        <div>
+          <button id="startupAnnouncementIgnoreButton" class="button button-secondary" type="button">忽略此通知</button>
+          <button id="startupAnnouncementCloseButton" class="button button-primary" type="button">知道了</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
     <form method="dialog" class="settings-card">
       <div class="settings-header">
@@ -359,6 +393,10 @@
         <span><strong>每次打开显示使用声明</strong><small>关闭后不再自动展示；许可条款与免责声明仍然适用。</small></span>
         <span class="switch"><input id="settingsShowUsageNotice" type="checkbox"><span aria-hidden="true"></span></span>
       </label>
+      <div class="settings-notice-control settings-notice-action">
+        <span><strong>启动通知</strong><small>清除当前通知的忽略记录，并立即重新显示这一版通知。</small></span>
+        <button id="settingsResetAnnouncementButton" class="button button-secondary button-small" type="button">重新显示已忽略通知</button>
+      </div>
       <div class="settings-actions">
         <button id="clearCacheButton" class="button button-link danger-link" type="button">清除上次数据</button>
         <div class="settings-actions-right">

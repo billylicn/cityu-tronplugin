@@ -1,4 +1,5 @@
 import { AuthError, TronClassApi } from "./lib/api.js";
+import { announcementContent, announcementFingerprint } from "./lib/announcement.js";
 import { battleRecordKey, deriveBattleReport, groupReportRecords, reportRecordDescription } from "./lib/battle-report.js";
 import { createBattleReportPng } from "./lib/report-image.js";
 import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, createBattleReportCache, createDashboardCache, readBattleReportCache, readDashboardCache } from "./lib/cache.js";
@@ -16,7 +17,14 @@ import {
 
 const api = new TronClassApi();
 const UI_PREFERENCES_KEY = "uiPreferences";
+const PROJECT_URL = "https://github.com/billylicn/cityu-tronplugin";
 const LATEST_RELEASE_API = "https://api.github.com/repos/billylicn/cityu-tronplugin/releases/latest";
+const STARTUP_ANNOUNCEMENT = Object.freeze({
+  title: "CityU TronClass Plugin v0.3.6",
+  content: "CityU TronClass Plugin v0.3.6 已发布。你可以通过 GitHub 项目页查看更新说明、下载最新版本或反馈问题。",
+  actionLabel: "查看 GitHub 项目",
+  actionUrl: PROJECT_URL
+});
 const USAGE_ACKNOWLEDGEMENT = "我已知本软件可能出现漏报、错报、重复、延迟或无法读取等情况。我会自行以 TronClass 原页面、课程通知及教师要求为准，并自行承担使用本插件造成的所有后果。";
 const DEFAULT_SECTION_ORDER = Object.freeze(["attendance", "tasks", "materials"]);
 const DEFAULT_COLLAPSED = Object.freeze({ overview: false, attendance: false, tasks: false, materials: false });
@@ -41,6 +49,7 @@ const state = {
   errors: [],
   refreshedAt: null,
   refreshing: false,
+  authenticationRequired: false,
   page: "overview",
   battleReport: null,
   rawBattleReport: null,
@@ -55,12 +64,14 @@ const state = {
     defaultCollapsed: { ...DEFAULT_COLLAPSED },
     autoRefresh: true,
     suppressUsageNotice: false,
+    ignoredAnnouncementFingerprint: "",
     settingsDraft: null
   }
 };
 
 const dom = Object.fromEntries([
-  "studentIdentity", "studentName", "studentNumber", "refreshMeta", "refreshButton", "loginPanel", "loginMessage", "loginButton", "loadingPanel",
+  "studentIdentity", "studentName", "studentNumber", "refreshMeta", "refreshButton", "authBanner", "authBannerMessage", "authLoginButton", "authRefreshButton",
+  "loginPanel", "loginTitle", "loginMessage", "loginButton", "loginRefreshButton", "loadingPanel",
   "loadingTitle", "loadingDetail", "dashboardContent", "scopeDescription", "historyCourseSelect",
   "courseSummary", "statsGrid", "attendanceGrid", "taskCourseFilter", "taskStatusFilter",
   "taskTypeFilter", "taskList", "hiddenTasksMenu", "hiddenTaskCount", "hiddenTaskList", "restoreAllHiddenTasks", "materialCourseFilter", "materialsList", "errorsSection",
@@ -74,13 +85,17 @@ const dom = Object.fromEntries([
   "battleHomeworkMeter", "battleHomeworkHelp", "battleWarning", "battleFailedCourses", "battleCoverage",
   "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords", "usageNoticeDialog",
   "usageNoticeDontShow", "usageNoticeCopyButton", "usageNoticeAcknowledgement", "usageNoticeMatchStatus",
-  "usageNoticeConfirmButton",
-  "settingsShowUsageNotice", "currentVersion", "noticeCurrentVersion", "versionCheckStatus",
+  "usageNoticeConfirmButton", "startupAnnouncementDialog", "startupAnnouncementTitle", "startupAnnouncementContent",
+  "startupAnnouncementProjectButton", "startupAnnouncementIgnoreButton", "startupAnnouncementCloseButton",
+  "settingsShowUsageNotice", "settingsResetAnnouncementButton", "currentVersion", "noticeCurrentVersion", "versionCheckStatus",
   "updateNotice", "latestVersion", "updateCurrentVersion"
 ].map((id) => [id, document.getElementById(id)]));
 
 let usageNoticePromise = null;
 let usageNoticeConfirmed = false;
+let startupPromptsPromise = null;
+let announcementPromise = null;
+let activeAnnouncementFingerprint = "";
 
 bindEvents();
 void start();
@@ -88,7 +103,7 @@ void start();
 async function start() {
   await loadUiPreferences();
   renderCurrentVersion();
-  await showUsageNotice();
+  await showStartupPrompts();
   void checkForUpdates();
   await initialize();
 }
@@ -131,6 +146,78 @@ function showUsageNotice() {
     if (!dialog.open) dialog.showModal();
   });
   return usageNoticePromise;
+}
+
+function showStartupPrompts() {
+  if (startupPromptsPromise) return startupPromptsPromise;
+  startupPromptsPromise = (async () => {
+    await showUsageNotice();
+    await showStartupAnnouncement();
+  })().finally(() => {
+    startupPromptsPromise = null;
+  });
+  return startupPromptsPromise;
+}
+
+async function showStartupAnnouncement() {
+  const announcement = announcementContent(STARTUP_ANNOUNCEMENT);
+  const dialog = dom.startupAnnouncementDialog;
+  if (!announcement || !dialog || typeof dialog.showModal !== "function") return;
+  if (announcementPromise) return announcementPromise;
+
+  let fingerprint;
+  try {
+    fingerprint = await announcementFingerprint(announcement);
+  } catch (error) {
+    console.warn("无法校验启动通知内容", error);
+    return;
+  }
+  if (!fingerprint || fingerprint === state.ui.ignoredAnnouncementFingerprint) return;
+
+  activeAnnouncementFingerprint = fingerprint;
+  dom.startupAnnouncementTitle.textContent = announcement.title;
+  dom.startupAnnouncementContent.textContent = announcement.content;
+  dom.startupAnnouncementProjectButton.textContent = announcement.actionLabel || "查看项目";
+  dom.startupAnnouncementProjectButton.classList.toggle("is-hidden", !announcement.actionUrl);
+
+  announcementPromise = new Promise((resolve) => {
+    const handleClose = () => {
+      dialog.removeEventListener("close", handleClose);
+      announcementPromise = null;
+      activeAnnouncementFingerprint = "";
+      resolve();
+    };
+    dialog.addEventListener("close", handleClose);
+    if (!dialog.open) dialog.showModal();
+  });
+  return announcementPromise;
+}
+
+async function ignoreStartupAnnouncement() {
+  if (!activeAnnouncementFingerprint) return;
+  const previous = state.ui.ignoredAnnouncementFingerprint;
+  state.ui.ignoredAnnouncementFingerprint = activeAnnouncementFingerprint;
+  try {
+    await saveUiPreferences();
+    dom.startupAnnouncementDialog.close();
+  } catch (error) {
+    state.ui.ignoredAnnouncementFingerprint = previous;
+    toast(`通知忽略设置保存失败：${error?.message || String(error)}`, true);
+  }
+}
+
+async function restoreStartupAnnouncement() {
+  const previous = state.ui.ignoredAnnouncementFingerprint;
+  state.ui.ignoredAnnouncementFingerprint = "";
+  try {
+    await saveUiPreferences();
+    dom.settingsResetAnnouncementButton.disabled = true;
+    dom.settingsDialog.close();
+    await showStartupAnnouncement();
+  } catch (error) {
+    state.ui.ignoredAnnouncementFingerprint = previous;
+    toast(`无法恢复启动通知：${error?.message || String(error)}`, true);
+  }
 }
 
 async function copyUsageAcknowledgement() {
@@ -248,6 +335,9 @@ async function loadUiPreferences() {
 
     if (typeof preferences.autoRefresh === "boolean") state.ui.autoRefresh = preferences.autoRefresh;
     if (typeof preferences.suppressUsageNotice === "boolean") state.ui.suppressUsageNotice = preferences.suppressUsageNotice;
+    if (typeof preferences.ignoredAnnouncementFingerprint === "string" && /^[a-f0-9]{64}$/i.test(preferences.ignoredAnnouncementFingerprint)) {
+      state.ui.ignoredAnnouncementFingerprint = preferences.ignoredAnnouncementFingerprint.toLowerCase();
+    }
 
     if (Array.isArray(preferences.ignoredActivityKeys)) {
       state.ignoredActivityKeys = new Set(preferences.ignoredActivityKeys
@@ -276,6 +366,7 @@ async function saveUiPreferences() {
       defaultCollapsed: { ...state.ui.defaultCollapsed },
       autoRefresh: state.ui.autoRefresh,
       suppressUsageNotice: state.ui.suppressUsageNotice,
+      ignoredAnnouncementFingerprint: state.ui.ignoredAnnouncementFingerprint,
       ignoredActivityKeys: [...state.ignoredActivityKeys]
     }
   });
@@ -338,7 +429,9 @@ function showCachedOrOfflineEmpty(cacheLoaded) {
     return;
   }
   dom.dashboardContent.classList.add("is-hidden");
+  dom.authBanner.classList.add("is-hidden");
   dom.loginPanel.classList.remove("is-hidden");
+  dom.loginTitle.textContent = "暂无上次数据";
   dom.loginMessage.textContent = cacheLoaded
     ? "学习总览没有上次缓存。自动刷新已关闭，点击“刷新数据”后才会读取 TronClass。"
     : "自动刷新已关闭，且当前没有上次数据。点击“刷新数据”手动读取 TronClass。";
@@ -442,6 +535,7 @@ function openSettings() {
     suppressUsageNotice: state.ui.suppressUsageNotice
   };
   dom.settingsShowUsageNotice.checked = !state.ui.settingsDraft.suppressUsageNotice;
+  dom.settingsResetAnnouncementButton.disabled = !state.ui.ignoredAnnouncementFingerprint;
   renderSectionSettings();
   dom.settingsDialog.showModal();
 }
@@ -558,6 +652,9 @@ function bindEvents() {
   dom.battleShareButton.addEventListener("click", (event) => shareBattleReport(event.currentTarget));
   dom.refreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
   dom.loginButton.addEventListener("click", () => openUrl("https://tronclass.cityu.edu.mo/"));
+  dom.loginRefreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
+  dom.authLoginButton.addEventListener("click", () => openUrl("https://tronclass.cityu.edu.mo/"));
+  dom.authRefreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
 
   document.querySelectorAll(".scope-button").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -570,7 +667,8 @@ function bindEvents() {
         else showOfflineScopeEmpty();
         return;
       }
-      await loadSelectedCourses();
+      if (state.authenticationRequired) await refresh({ firstLoad: false });
+      else await loadSelectedCourses();
     });
   });
 
@@ -581,7 +679,8 @@ function bindEvents() {
       else showOfflineScopeEmpty();
       return;
     }
-    await loadSelectedCourses();
+    if (state.authenticationRequired) await refresh({ firstLoad: false });
+    else await loadSelectedCourses();
   });
   dom.taskCourseFilter.addEventListener("change", () => { state.filters.taskCourse = dom.taskCourseFilter.value; renderTasks(); });
   dom.taskStatusFilter.addEventListener("change", () => { state.filters.taskStatus = dom.taskStatusFilter.value; renderTasks(); });
@@ -595,6 +694,7 @@ function bindEvents() {
   dom.settingsShowUsageNotice.addEventListener("change", () => {
     if (state.ui.settingsDraft) state.ui.settingsDraft.suppressUsageNotice = !dom.settingsShowUsageNotice.checked;
   });
+  dom.settingsResetAnnouncementButton.addEventListener("click", restoreStartupAnnouncement);
   dom.clearCacheButton.addEventListener("click", clearStoredData);
   dom.autoRefreshToggle.addEventListener("change", handleAutoRefreshToggle);
   dom.settingsDialog.addEventListener("click", (event) => {
@@ -604,9 +704,16 @@ function bindEvents() {
   dom.usageNoticeCopyButton.addEventListener("click", copyUsageAcknowledgement);
   dom.usageNoticeAcknowledgement.addEventListener("input", handleUsageAcknowledgementInput);
   dom.usageNoticeConfirmButton.addEventListener("click", confirmUsageNotice);
+  dom.startupAnnouncementProjectButton.addEventListener("click", () => {
+    const announcement = announcementContent(STARTUP_ANNOUNCEMENT);
+    if (announcement?.actionUrl) openUrl(announcement.actionUrl);
+  });
+  dom.startupAnnouncementIgnoreButton.addEventListener("click", ignoreStartupAnnouncement);
+  dom.startupAnnouncementCloseButton.addEventListener("click", () => dom.startupAnnouncementDialog.close());
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type !== "SHOW_USAGE_NOTICE") return false;
-    showUsageNotice().then(() => sendResponse({ ok: true }));
+    if (message?.type !== "SHOW_STARTUP_PROMPTS") return false;
+    if (dom.settingsDialog.open) dom.settingsDialog.close();
+    showStartupPrompts().then(() => sendResponse({ ok: true }));
     return true;
   });
 }
@@ -924,12 +1031,11 @@ async function refresh({ firstLoad }) {
   }
 
   try {
-    const [courses, student] = await Promise.all([
-      api.getCourses(),
-      api.getCurrentStudent().catch(() => null)
-    ]);
+    const student = await requireCurrentStudent();
     state.student = student;
     renderStudentIdentity();
+    clearAuthenticationPrompt();
+    const courses = await api.getCourses();
     state.courses = courses;
     ({ ongoing: state.ongoing, history: state.history } = splitCoursesByPlatformTerm(courses));
     if (!state.historyCourseId || !state.history.some((course) => course.id === state.historyCourseId)) {
@@ -959,6 +1065,7 @@ async function loadSelectedCourses({ fallbackCache = state.dashboardCache || nul
   resetFiltersForCourses(selected);
 
   if (!selected.length) {
+    clearAuthenticationPrompt();
     dom.loginPanel.classList.add("is-hidden");
     dom.loadingPanel.classList.add("is-hidden");
     dom.dashboardContent.classList.remove("is-hidden");
@@ -992,6 +1099,7 @@ async function loadSelectedCourses({ fallbackCache = state.dashboardCache || nul
     state.errors = result.errors;
     state.refreshedAt = new Date();
     dom.refreshMeta.textContent = `本页刷新于 ${formatClockTime(state.refreshedAt)}`;
+    clearAuthenticationPrompt();
     dom.loginPanel.classList.add("is-hidden");
     dom.loadingPanel.classList.add("is-hidden");
     dom.dashboardContent.classList.remove("is-hidden");
@@ -1012,13 +1120,40 @@ async function loadSelectedCourses({ fallbackCache = state.dashboardCache || nul
 function showRefreshFailure(error, fallbackCache = null) {
   if (fallbackCache) {
     applyDashboardCache(fallbackCache);
-    const message = error instanceof AuthError
-      ? `${error.message}，正在显示上次缓存。`
-      : `刷新失败：${error?.message || String(error)}。正在显示上次缓存。`;
-    toast(message, true);
+    if (error instanceof AuthError) {
+      showAuthenticationBanner(`${error.message}。当前继续显示上次缓存，请登录后重新刷新。`);
+      toast("无法读取当前用户信息，已保留上次缓存", true);
+    } else {
+      toast(`刷新失败：${error?.message || String(error)}。正在显示上次缓存。`, true);
+    }
     return;
   }
   handleFatalError(error);
+}
+
+async function requireCurrentStudent() {
+  try {
+    const student = await api.getCurrentStudent();
+    if (!student || !Number.isFinite(Number(student.internalUserId))) {
+      throw new Error("页面没有返回可用的用户标识");
+    }
+    return student;
+  } catch (error) {
+    if (error instanceof AuthError) throw error;
+    throw new AuthError(`无法读取当前用户信息，请先登录 TronClass（${error?.message || String(error)}）`);
+  }
+}
+
+function showAuthenticationBanner(message) {
+  state.authenticationRequired = true;
+  dom.authBannerMessage.textContent = message;
+  dom.authBanner.classList.remove("is-hidden");
+}
+
+function clearAuthenticationPrompt() {
+  state.authenticationRequired = false;
+  dom.authBanner.classList.add("is-hidden");
+  dom.loginPanel.classList.add("is-hidden");
 }
 
 function formatClockTime(value) {
@@ -1477,12 +1612,15 @@ function attendanceSettingText(setting) {
 
 function handleFatalError(error) {
   state.student = null;
+  state.authenticationRequired = error instanceof AuthError;
   renderStudentIdentity();
+  dom.authBanner.classList.add("is-hidden");
   dom.loadingPanel.classList.add("is-hidden");
   dom.dashboardContent.classList.add("is-hidden");
   dom.loginPanel.classList.remove("is-hidden");
+  dom.loginTitle.textContent = error instanceof AuthError ? "需要登录 TronClass" : "暂时无法读取数据";
   dom.loginMessage.textContent = error instanceof AuthError
-    ? error.message
+    ? `${error.message}。登录后请点击“我已登录，重新刷新”。`
     : `读取失败：${error?.message || String(error)}。请确认已登录后重试。`;
   dom.refreshMeta.textContent = "刷新失败";
 }
