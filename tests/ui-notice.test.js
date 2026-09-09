@@ -96,3 +96,24 @@ test("插件界面提供 GitHub 项目、当前版本和更新入口", () => {
   assert.match(script, /api\.github\.com\/repos\/billylicn\/cityu-tronplugin\/releases\/latest/);
   assert.ok(manifest.host_permissions.includes("https://api.github.com/*"));
 });
+
+test("页面设置已迁移到左侧独立功能页", () => {
+  assert.match(html, /class="side-nav-button" data-page="settings"/);
+  assert.match(html, /id="settingsPage" class="page-view is-hidden"/);
+  assert.match(html, /id="settingsForm"/);
+  assert.doesNotMatch(html, /id="settingsButton"/);
+  assert.doesNotMatch(html, /id="settingsDialog"/);
+  assert.match(script, /\["overview", "battle", "settings"\]\.includes\(page\)/);
+  assert.match(script, /dom\.settingsPage\.classList\.toggle\("is-hidden", page !== "settings"\)/);
+  assert.match(script, /if \(page === "settings"\) prepareSettingsPage\(\)/);
+});
+
+test("学习总览默认将任务置顶、折叠出勤并展开课程文件", () => {
+  assert.match(script, /DEFAULT_SECTION_ORDER = Object\.freeze\(\["tasks", "attendance", "materials"\]\)/);
+  assert.match(script, /DEFAULT_COLLAPSED = Object\.freeze\(\{ overview: false, tasks: false, attendance: true, materials: false \}\)/);
+  const overviewIndex = html.indexOf('data-section-key="overview"');
+  const tasksIndex = html.indexOf('data-section-key="tasks"');
+  const attendanceIndex = html.indexOf('data-section-key="attendance"');
+  const materialsIndex = html.indexOf('data-section-key="materials"');
+  assert.ok(overviewIndex < tasksIndex && tasksIndex < attendanceIndex && attendanceIndex < materialsIndex);
+});

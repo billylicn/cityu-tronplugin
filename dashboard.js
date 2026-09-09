@@ -1,6 +1,7 @@
 import { AuthError, TronClassApi } from "./lib/api.js";
 import { announcementContent, announcementFingerprint } from "./lib/announcement.js";
 import { battleRecordKey, deriveBattleReport, groupReportRecords, reportRecordDescription } from "./lib/battle-report.js";
+import { buildBattlePersona } from "./lib/battle-persona.js";
 import { createBattleReportPng } from "./lib/report-image.js";
 import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, createBattleReportCache, createDashboardCache, readBattleReportCache, readDashboardCache } from "./lib/cache.js";
 import { compareVersions, displayVersion } from "./lib/version.js";
@@ -37,8 +38,8 @@ const STARTUP_ANNOUNCEMENT = Object.freeze({
   actionUrl: PROJECT_URL
 });
 const USAGE_ACKNOWLEDGEMENT = "我已知本软件可能出现漏报、错报、重复、延迟或无法读取等情况。我会自行以 TronClass 原页面、课程通知及教师要求为准，并自行承担使用本插件造成的所有后果。";
-const DEFAULT_SECTION_ORDER = Object.freeze(["attendance", "tasks", "materials"]);
-const DEFAULT_COLLAPSED = Object.freeze({ overview: false, attendance: false, tasks: false, materials: false });
+const DEFAULT_SECTION_ORDER = Object.freeze(["tasks", "attendance", "materials"]);
+const DEFAULT_COLLAPSED = Object.freeze({ overview: false, tasks: false, attendance: true, materials: false });
 const SECTION_LABELS = Object.freeze({
   overview: "统计面板",
   attendance: "出勤情况",
@@ -86,12 +87,12 @@ const dom = Object.fromEntries([
   "loadingTitle", "loadingDetail", "dashboardContent", "scopeDescription", "historyCourseSelect",
   "courseSummary", "statsGrid", "attendanceGrid", "taskCourseFilter", "taskStatusFilter",
   "taskTypeFilter", "taskList", "hiddenTasksMenu", "hiddenTaskCount", "hiddenTaskList", "restoreAllHiddenTasks", "materialCourseFilter", "materialsList", "errorsSection",
-  "errorsList", "toastRegion", "settingsButton", "settingsDialog", "settingsCloseButton",
-  "settingsResetButton", "settingsApplyButton", "sectionSettingsList", "autoRefreshToggle", "clearCacheButton", "overviewPage", "battlePage",
+  "errorsList", "toastRegion", "settingsPage", "settingsForm", "settingsResetButton", "settingsApplyButton",
+  "sectionSettingsList", "autoRefreshToggle", "clearCacheButton", "overviewPage", "battlePage",
   "battleResultActions", "battleRestoreButton", "battleRegenerateButton", "battleShareButton", "battleEmpty", "battleGenerateButton",
   "battleLoading", "battleProgressTitle", "battleProgressDetail", "battleProgressBar", "battleProgressPercent",
   "battleError", "battleErrorMessage", "battleRetryButton", "battleResult", "battleGradeBadge", "battleGrade",
-  "battleTitle", "battleIncompleteBadge", "battleRiskRing", "battleRiskValue", "battleStats",
+  "battleTitle", "battlePersonaQuip", "battlePersonaKeywords", "battleIncompleteBadge", "battleRiskRing", "battleRiskValue", "battleStats",
   "battleAttendanceRate", "battleAttendanceMeter", "battleAttendanceHelp", "battleHomeworkRate",
   "battleHomeworkMeter", "battleHomeworkHelp", "battleWarning", "battleFailedCourses", "battleCoverage",
   "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords", "usageNoticeDialog",
@@ -252,7 +253,6 @@ async function restoreStartupAnnouncement() {
   try {
     await saveUiPreferences();
     dom.settingsResetAnnouncementButton.disabled = true;
-    dom.settingsDialog.close();
     await showStartupAnnouncement();
   } catch (error) {
     state.ui.ignoredAnnouncementFingerprint = previous;
@@ -568,7 +568,7 @@ function setSectionCollapsed(section, collapsed) {
   toggle.setAttribute("aria-expanded", String(!collapsed));
 }
 
-function openSettings() {
+function prepareSettingsPage() {
   state.ui.settingsDraft = {
     sectionOrder: [...state.ui.sectionOrder],
     defaultCollapsed: { ...state.ui.defaultCollapsed },
@@ -577,7 +577,6 @@ function openSettings() {
   dom.settingsShowUsageNotice.checked = !state.ui.settingsDraft.suppressUsageNotice;
   dom.settingsResetAnnouncementButton.disabled = !state.ui.ignoredAnnouncementFingerprint;
   renderSectionSettings();
-  dom.settingsDialog.showModal();
 }
 
 function renderSectionSettings() {
@@ -642,7 +641,6 @@ async function applySettings() {
   }
   try {
     await saveUiPreferences();
-    dom.settingsDialog.close();
     toast("页面设置已保存，将长期生效");
   } catch (error) {
     toast(`页面设置已应用，但保存失败：${error?.message || String(error)}`, true);
@@ -682,7 +680,7 @@ function applySectionOrder() {
 }
 
 function bindEvents() {
-  document.querySelectorAll(".side-nav-button").forEach((navButton) => {
+  document.querySelectorAll(".side-nav-button[data-page]").forEach((navButton) => {
     navButton.addEventListener("click", () => switchPage(navButton.dataset.page));
   });
   dom.battleGenerateButton.addEventListener("click", generateBattleReport);
@@ -727,8 +725,6 @@ function bindEvents() {
   dom.taskTypeFilter.addEventListener("change", () => { state.filters.taskType = dom.taskTypeFilter.value; renderTasks(); });
   dom.restoreAllHiddenTasks.addEventListener("click", restoreAllIgnoredActivities);
   dom.materialCourseFilter.addEventListener("change", () => { state.filters.materialCourse = dom.materialCourseFilter.value; renderMaterials(); });
-  dom.settingsButton.addEventListener("click", openSettings);
-  dom.settingsCloseButton.addEventListener("click", () => dom.settingsDialog.close());
   dom.settingsResetButton.addEventListener("click", resetSettingsDraft);
   dom.settingsApplyButton.addEventListener("click", applySettings);
   dom.settingsShowUsageNotice.addEventListener("change", () => {
@@ -737,9 +733,6 @@ function bindEvents() {
   dom.settingsResetAnnouncementButton.addEventListener("click", restoreStartupAnnouncement);
   dom.clearCacheButton.addEventListener("click", clearStoredData);
   dom.autoRefreshToggle.addEventListener("change", handleAutoRefreshToggle);
-  dom.settingsDialog.addEventListener("click", (event) => {
-    if (event.target === dom.settingsDialog) dom.settingsDialog.close();
-  });
   dom.usageNoticeDialog.addEventListener("cancel", (event) => event.preventDefault());
   dom.usageNoticeCopyButton.addEventListener("click", copyUsageAcknowledgement);
   dom.usageNoticeAcknowledgement.addEventListener("input", handleUsageAcknowledgementInput);
@@ -751,7 +744,6 @@ function bindEvents() {
   dom.startupAnnouncementCloseButton.addEventListener("click", () => dom.startupAnnouncementDialog.close());
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "SHOW_STARTUP_PROMPTS") return false;
-    if (dom.settingsDialog.open) dom.settingsDialog.close();
     showStartupPrompts().then(() => sendResponse({ ok: true }));
     return true;
   });
@@ -779,17 +771,19 @@ function dashboardCacheMatchesScope() {
 }
 
 function switchPage(page) {
-  if (!['overview', 'battle'].includes(page)) return;
+  if (!["overview", "battle", "settings"].includes(page)) return;
   state.page = page;
   dom.overviewPage.classList.toggle("is-hidden", page !== "overview");
   dom.battlePage.classList.toggle("is-hidden", page !== "battle");
-  document.querySelectorAll(".side-nav-button").forEach((navButton) => {
+  dom.settingsPage.classList.toggle("is-hidden", page !== "settings");
+  document.querySelectorAll(".side-nav-button[data-page]").forEach((navButton) => {
     const active = navButton.dataset.page === page;
     navButton.classList.toggle("is-active", active);
     if (active) navButton.setAttribute("aria-current", "page");
     else navButton.removeAttribute("aria-current");
   });
   document.querySelectorAll(".overview-action").forEach((node) => node.classList.toggle("is-hidden", page !== "overview"));
+  if (page === "settings") prepareSettingsPage();
 }
 
 async function generateBattleReport() {
@@ -861,6 +855,9 @@ function renderBattleReport(report) {
   dom.battleResult.style.setProperty("--grade-b", colors[1]);
   dom.battleGrade.textContent = report.grade || "—";
   dom.battleTitle.textContent = report.title;
+  const persona = buildBattlePersona(report);
+  dom.battlePersonaQuip.textContent = persona.quip;
+  dom.battlePersonaKeywords.replaceChildren(...persona.keywords.map((keyword) => element("span", "battle-persona-keyword", keyword)));
   dom.battleIncompleteBadge.classList.toggle("is-hidden", !report.incomplete);
   dom.battleRestoreButton.disabled = state.hiddenAttendanceKeys.size === 0 && state.hiddenHomeworkKeys.size === 0;
 

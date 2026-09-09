@@ -30,7 +30,6 @@
           <span class="switch switch-compact"><input id="autoRefreshToggle" type="checkbox"><span aria-hidden="true"></span></span>
         </label>
       </div>
-      <button id="settingsButton" class="button button-secondary overview-action" type="button">页面设置</button>
       <button id="refreshButton" class="button button-primary overview-action" type="button">刷新数据</button>
     </div>
   </header>
@@ -45,6 +44,10 @@
       <button class="side-nav-button" data-page="battle" type="button">
         <span class="side-nav-icon side-nav-icon-battle" aria-hidden="true">★</span>
         <span><strong>城大战绩</strong><small>全课程统计报告</small></span>
+      </button>
+      <button class="side-nav-button" data-page="settings" type="button">
+        <span class="side-nav-icon side-nav-icon-settings" aria-hidden="true">⚙</span>
+        <span><strong>页面设置</strong><small>排序、折叠与缓存</small></span>
       </button>
       <div class="side-nav-foot">
         <span>非官方社区项目 · MIT License</span>
@@ -119,17 +122,6 @@
             <div id="statsGrid" class="stats-grid"></div>
           </section>
 
-          <section class="content-section" data-section-key="attendance" aria-labelledby="attendanceTitle">
-            <div class="section-heading">
-              <div>
-                <span class="eyebrow">出勤</span>
-                <h2 id="attendanceTitle">出勤情况</h2>
-              </div>
-              <p class="section-note">异常记录优先；统计口径以教师在 TronClass 的设置为准。</p>
-            </div>
-            <div id="attendanceGrid" class="attendance-grid"></div>
-          </section>
-
           <section class="content-section" data-section-key="tasks" aria-labelledby="tasksTitle">
             <div class="section-heading section-heading-with-controls">
               <div class="task-heading-copy">
@@ -172,6 +164,17 @@
               </div>
             </div>
             <div id="taskList" class="task-list"></div>
+          </section>
+
+          <section class="content-section" data-section-key="attendance" aria-labelledby="attendanceTitle">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">出勤</span>
+                <h2 id="attendanceTitle">出勤情况</h2>
+              </div>
+              <p class="section-note">异常记录优先；统计口径以教师在 TronClass 的设置为准。</p>
+            </div>
+            <div id="attendanceGrid" class="attendance-grid"></div>
           </section>
 
           <section class="content-section" data-section-key="materials" aria-labelledby="materialsTitle">
@@ -248,6 +251,8 @@
             <div class="battle-hero-copy">
               <span class="battle-kicker">CITYU TRONCLASS BATTLE REPORT</span>
               <h3 id="battleTitle">暂无等级</h3>
+              <p id="battlePersonaQuip" class="battle-persona-quip"></p>
+              <div id="battlePersonaKeywords" class="battle-persona-keywords" aria-label="战绩关键词"></div>
               <div id="battleIncompleteBadge" class="battle-incomplete-badge is-hidden">数据可能不完整</div>
             </div>
             <div class="battle-risk-gauge">
@@ -298,6 +303,39 @@
             </div>
           </section>
         </div>
+      </div>
+
+      <div id="settingsPage" class="page-view is-hidden">
+        <section class="settings-page-heading">
+          <div>
+            <span class="eyebrow">个性化与本地数据</span>
+            <h2>页面设置</h2>
+            <p>调整学习总览栏目顺序、默认折叠状态，以及本机上的声明、通知和匿名缓存设置。</p>
+          </div>
+        </section>
+
+        <form id="settingsForm" class="settings-card settings-page-card">
+          <div class="settings-header">
+            <div><span class="eyebrow">学习总览布局</span><h3 id="settingsTitle">调整栏目顺序与折叠状态</h3></div>
+          </div>
+          <div class="settings-subheading"><strong>栏目顺序</strong><span>使用上下按钮调整出勤、作业和课程文件的显示次序。</span></div>
+          <div id="sectionSettingsList" class="section-settings-list"></div>
+          <label class="settings-notice-control">
+            <span><strong>每次打开显示使用声明</strong><small>关闭后不再自动展示；许可条款与免责声明仍然适用。</small></span>
+            <span class="switch"><input id="settingsShowUsageNotice" type="checkbox"><span aria-hidden="true"></span></span>
+          </label>
+          <div class="settings-notice-control settings-notice-action">
+            <span><strong>启动通知</strong><small>清除当前通知的忽略记录，并立即重新显示这一版通知。</small></span>
+            <button id="settingsResetAnnouncementButton" class="button button-secondary button-small" type="button">重新显示已忽略通知</button>
+          </div>
+          <div class="settings-actions">
+            <button id="clearCacheButton" class="button button-link danger-link" type="button">清除上次数据</button>
+            <div class="settings-actions-right">
+              <button id="settingsResetButton" class="button button-secondary" type="button">恢复默认</button>
+              <button id="settingsApplyButton" class="button button-primary" type="button">应用设置</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   </main>
@@ -383,33 +421,6 @@
         </label>
         <button id="startupAnnouncementProjectButton" class="button button-secondary" type="button">查看开源项目与使用说明</button>
       </footer>
-    </form>
-  </dialog>
-
-  <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
-    <form method="dialog" class="settings-card">
-      <div class="settings-header">
-        <div><span class="eyebrow">页面设置</span><h2 id="settingsTitle">调整栏目顺序与折叠状态</h2></div>
-        <button id="settingsCloseButton" class="button button-link" type="button" aria-label="关闭页面设置">关闭</button>
-      </div>
-      <p class="settings-privacy">页面设置与匿名学习缓存会保存在浏览器本地；不保存姓名、学号、登录凭证、签名文件地址或文件内容。</p>
-      <div class="settings-subheading"><strong>栏目顺序</strong><span>使用上下按钮调整出勤、作业和课程文件的显示次序。</span></div>
-      <div id="sectionSettingsList" class="section-settings-list"></div>
-      <label class="settings-notice-control">
-        <span><strong>每次打开显示使用声明</strong><small>关闭后不再自动展示；许可条款与免责声明仍然适用。</small></span>
-        <span class="switch"><input id="settingsShowUsageNotice" type="checkbox"><span aria-hidden="true"></span></span>
-      </label>
-      <div class="settings-notice-control settings-notice-action">
-        <span><strong>启动通知</strong><small>清除当前通知的忽略记录，并立即重新显示这一版通知。</small></span>
-        <button id="settingsResetAnnouncementButton" class="button button-secondary button-small" type="button">重新显示已忽略通知</button>
-      </div>
-      <div class="settings-actions">
-        <button id="clearCacheButton" class="button button-link danger-link" type="button">清除上次数据</button>
-        <div class="settings-actions-right">
-          <button id="settingsResetButton" class="button button-secondary" type="button">恢复默认</button>
-          <button id="settingsApplyButton" class="button button-primary" type="button">应用设置</button>
-        </div>
-      </div>
     </form>
   </dialog>
 

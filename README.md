@@ -56,7 +56,8 @@
 7. 在同一浏览器中登录澳门城市大学 TronClass。
 8. 点击工具栏中的扩展图标，打开 Dashboard。
 
-> 更新时下载并解压新的 Release，然后在 `chrome://extensions/` 中移除旧版本并加载新目录。
+> [!IMPORTANT]
+> 更新时下载并解压新的 Release，然后在 `chrome://extensions/` 中移除旧版 CityU TronClass Plugin，再加载新版本目录。删除旧扩展会清除插件的本地缓存、页面布局和忽略设置，但不会修改 TronClass 原站中的课程、作业、考勤或文件数据。
 
 ### 从源码安装
 

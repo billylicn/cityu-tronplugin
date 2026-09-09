@@ -77,9 +77,38 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: |
+            > [!IMPORTANT]
+            > 从旧版本更新时，请先在 `chrome://extensions/` 中删除旧版 CityU TronClass Plugin，再安装本次下载的新版本。
+            >
+            > 删除旧扩展会同时清除插件的本地缓存、页面布局和忽略设置，但不会修改 TronClass 原站中的课程、作业、考勤或文件数据。
+
+            ## 从旧版本更新
+
+            1. 在 Assets 中下载 `cityu-tronclass-plugin-${{ github.ref_name }}.zip`。
+            2. 将 ZIP 完整解压，不能直接加载 ZIP 文件。
+            3. 打开 `chrome://extensions/`。
+            4. 找到旧版 CityU TronClass Plugin，点击“移除”。
+            5. 开启右上角“开发者模式”。
+            6. 点击“加载已解压的扩展程序”，选择刚刚解压的新版本目录。
+            7. 登录 TronClass，然后点击扩展图标重新打开插件。
+
+            ## 首次安装
+
+            1. 在 Assets 中下载本 Release 的 ZIP 安装包。
+            2. 将 ZIP 完整解压。
+            3. 打开 `chrome://extensions/` 并开启“开发者模式”。
+            4. 点击“加载已解压的扩展程序”。
+            5. 选择解压后、根目录中包含 `manifest.json` 的文件夹。
+            6. 登录澳门城市大学 TronClass，然后点击扩展图标。
+
+            ## 本次更新内容
+
+            以下内容由 GitHub 根据本版本的提交和合并记录自动生成。
         run: |
           gh release create "${GITHUB_REF_NAME}" \
             "${{ steps.package.outputs.archive }}" \
             --verify-tag \
             --title "CityU TronClass Plugin ${GITHUB_REF_NAME}" \
+            --notes "${RELEASE_NOTES}" \
             --generate-notes
