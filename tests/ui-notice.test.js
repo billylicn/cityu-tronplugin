@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const html = readFileSync(new URL("../dashboard.html", import.meta.url), "utf8");
 const script = readFileSync(new URL("../dashboard.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../dashboard.css", import.meta.url), "utf8");
 const background = readFileSync(new URL("../background.js", import.meta.url), "utf8");
 const manifest = JSON.parse(readFileSync(new URL("../manifest.json", import.meta.url), "utf8"));
 
@@ -60,6 +61,7 @@ test("普通启动通知支持长内容和仅忽略完全相同的内容", () =>
   assert.match(html, /id="startupAnnouncementItems"/);
   assert.match(html, /id="startupAnnouncementDontShow"/);
   assert.match(html, /id="startupAnnouncementCloseButton"[^>]*aria-label="关闭通知"/);
+  assert.match(html, /id="startupAnnouncementConfirmButton"[^>]*>确定并进入<\/button>/);
   assert.match(html, /不再显示这条通知/);
   assert.match(html, /仅忽略内容完全相同的通知/);
   assert.doesNotMatch(html, /id="startupAnnouncementIgnoreButton"/);
@@ -71,6 +73,7 @@ test("普通启动通知支持长内容和仅忽略完全相同的内容", () =>
   assert.match(script, /fingerprint === state\.ui\.ignoredAnnouncementFingerprint/);
   assert.match(script, /startupAnnouncementDontShow\.checked/);
   assert.match(script, /const shouldRemember = dom\.startupAnnouncementDontShow\.checked/);
+  assert.match(script, /startupAnnouncementConfirmButton\.addEventListener\("click", \(\) => dom\.startupAnnouncementDialog\.close\(\)\)/);
   assert.match(script, /ignoredAnnouncementFingerprint: state\.ui\.ignoredAnnouncementFingerprint/);
   assert.match(script, /欢迎使用 CityU TronClass Plugin/);
   assert.match(script, /学习总览：集中查看出勤、待提交作业/);
@@ -95,4 +98,51 @@ test("插件界面提供 GitHub 项目、当前版本和更新入口", () => {
   assert.match(html, /releases\/latest/);
   assert.match(script, /api\.github\.com\/repos\/billylicn\/cityu-tronplugin\/releases\/latest/);
   assert.ok(manifest.host_permissions.includes("https://api.github.com/*"));
+});
+
+test("左侧功能栏使用本地 SVG 图标并保持统一渲染", () => {
+  const sideNav = html.slice(html.indexOf('<aside class="side-nav"'), html.indexOf('</aside>', html.indexOf('<aside class="side-nav"')));
+  assert.equal((sideNav.match(/<svg viewBox="0 0 24 24" focusable="false">/g) || []).length, 4);
+  assert.doesNotMatch(sideNav, />\s*(?:▦|分|★|⚙)\s*</);
+  assert.match(css, /\.side-nav-icon svg \{[^}]*stroke: currentColor;/);
+});
+
+test("页面设置已迁移到左侧独立功能页", () => {
+  assert.match(html, /class="side-nav-button" data-page="settings"/);
+  assert.match(html, /id="settingsPage" class="page-view is-hidden"/);
+  assert.match(html, /id="settingsForm"/);
+  assert.doesNotMatch(html, /id="settingsButton"/);
+  assert.doesNotMatch(html, /id="settingsDialog"/);
+  assert.match(script, /\["overview", "grades", "battle", "settings"\]\.includes\(page\)/);
+  assert.match(script, /dom\.settingsPage\.classList\.toggle\("is-hidden", page !== "settings"\)/);
+  assert.match(script, /if \(page === "settings"\) prepareSettingsPage\(\)/);
+});
+
+test("学习总览默认将任务置顶、折叠出勤并展开课程文件", () => {
+  assert.match(script, /DEFAULT_SECTION_ORDER = Object\.freeze\(\["tasks", "attendance", "materials"\]\)/);
+  assert.match(script, /DEFAULT_COLLAPSED = Object\.freeze\(\{ overview: false, tasks: false, attendance: true, materials: false \}\)/);
+  const overviewIndex = html.indexOf('data-section-key="overview"');
+  const tasksIndex = html.indexOf('data-section-key="tasks"');
+  const attendanceIndex = html.indexOf('data-section-key="attendance"');
+  const materialsIndex = html.indexOf('data-section-key="materials"');
+  assert.ok(overviewIndex < tasksIndex && tasksIndex < attendanceIndex && attendanceIndex < materialsIndex);
+});
+
+test("城大战绩不再提供图片生成或分享功能", () => {
+  assert.doesNotMatch(html, /battleShareButton|一键分享图|匿名分享图/);
+  assert.doesNotMatch(script, /createBattleReportPng|shareBattleReport|navigator\.share|report-image/);
+});
+
+
+test("左侧成绩展示页通过后台接口读取当前与历史学期成绩", () => {
+  assert.match(html, /class="side-nav-button" data-page="grades"/);
+  assert.match(html, /id="gradesPage" class="page-view is-hidden"/);
+  assert.match(html, /id="gradeHistoryTermSelect"/);
+  assert.match(html, /id="gradeCourseFilter"/);
+  assert.match(html, /id="gradeTypeFilter"/);
+  assert.match(html, /id="gradeStatusFilter"/);
+  assert.match(script, /api\.loadGradesCourses\(term\.courses/);
+  assert.match(script, /page === "grades"/);
+  assert.match(script, /自动刷新已关闭，点击“刷新成绩”/);
+  assert.doesNotMatch(script, /querySelector[^\n]*(成绩|score)/i);
 });

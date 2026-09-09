@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   CACHE_VERSION,
   createBattleReportCache,
+  createGradeCache,
   createDashboardCache,
   readBattleReportCache,
-  readDashboardCache
+  readDashboardCache,
+  readGradeCache
 } from "../lib/cache.js";
 
 test("学习总览缓存使用白名单且不持久化身份、凭证与签名数据", () => {
@@ -55,4 +57,32 @@ test("战绩缓存保留排除键并移除评价和未知字段", () => {
   assert.equal(serialized.includes("evaluation"), false);
   assert.equal(serialized.includes("不应保存"), false);
   assert.equal(serialized.includes("secret"), false);
+});
+
+
+test("成绩缓存只保留展示字段，不保存身份、作答内容和原始响应", () => {
+  const cache = createGradeCache({
+    student: { name: "不应保存", studentNumber: "NO", internalUserId: 123 },
+    courses: [{ id: 1, name: "课程", semesterId: 9, token: "secret" }],
+    terms: [{
+      key: "semester:9",
+      name: "当前学期",
+      courseIds: [1],
+      grades: [{
+        courseId: 1, courseName: "课程", sourceType: "questionnaire", sourceId: 2, title: "问卷",
+        submitted: true, score: 100, scoreText: "100", scoreStatus: "published", scorePublished: true,
+        weight: 5, submittedAt: "2026-09-01T00:00:00Z", directUrl: "https://tronclass.cityu.edu.mo/course/1",
+        answers: "秘密答案", submissionId: 99, cookie: "secret"
+      }],
+      errors: [],
+      refreshedAt: "2026-09-09T00:00:00Z",
+      rawResponse: { private: true }
+    }]
+  }, "2026-09-09T00:01:00Z");
+  const serialized = JSON.stringify(cache);
+  for (const forbidden of ["不应保存", "studentNumber", "internalUserId", "秘密答案", "submissionId", "cookie", "secret", "rawResponse"]) {
+    assert.equal(serialized.includes(forbidden), false, `成绩缓存不应包含 ${forbidden}`);
+  }
+  assert.equal(cache.terms[0].grades[0].score, 100);
+  assert.equal(readGradeCache(cache).terms[0].key, "semester:9");
 });

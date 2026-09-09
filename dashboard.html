@@ -30,7 +30,6 @@
           <span class="switch switch-compact"><input id="autoRefreshToggle" type="checkbox"><span aria-hidden="true"></span></span>
         </label>
       </div>
-      <button id="settingsButton" class="button button-secondary overview-action" type="button">页面设置</button>
       <button id="refreshButton" class="button button-primary overview-action" type="button">刷新数据</button>
     </div>
   </header>
@@ -39,12 +38,51 @@
     <aside class="side-nav" aria-label="功能选择">
       <div class="side-nav-title">功能</div>
       <button class="side-nav-button is-active" data-page="overview" type="button" aria-current="page">
-        <span class="side-nav-icon" aria-hidden="true">▦</span>
+        <span class="side-nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <rect x="3.5" y="3.5" width="7" height="7" rx="1.5"></rect>
+            <rect x="13.5" y="3.5" width="7" height="7" rx="1.5"></rect>
+            <rect x="3.5" y="13.5" width="7" height="7" rx="1.5"></rect>
+            <rect x="13.5" y="13.5" width="7" height="7" rx="1.5"></rect>
+          </svg>
+        </span>
         <span><strong>学习总览</strong><small>出勤、任务与文件</small></span>
       </button>
+      <button class="side-nav-button" data-page="grades" type="button">
+        <span class="side-nav-icon side-nav-icon-grades" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M6 3.5h8l4 4v13H6z"></path>
+            <path d="M14 3.5v4h4"></path>
+            <path d="m8.5 14 2.1 2.1 4.9-5"></path>
+          </svg>
+        </span>
+        <span><strong>成绩展示</strong><small>作业、问卷与考试</small></span>
+      </button>
       <button class="side-nav-button" data-page="battle" type="button">
-        <span class="side-nav-icon side-nav-icon-battle" aria-hidden="true">★</span>
+        <span class="side-nav-icon side-nav-icon-battle" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M8 4h8v4.5a4 4 0 0 1-8 0z"></path>
+            <path d="M8 6H4.5v1.5A3.5 3.5 0 0 0 8 11"></path>
+            <path d="M16 6h3.5v1.5A3.5 3.5 0 0 1 16 11"></path>
+            <path d="M12 12.5V17"></path>
+            <path d="M8.5 20h7"></path>
+            <path d="M10 17h4"></path>
+          </svg>
+        </span>
         <span><strong>城大战绩</strong><small>全课程统计报告</small></span>
+      </button>
+      <button class="side-nav-button" data-page="settings" type="button">
+        <span class="side-nav-icon side-nav-icon-settings" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M4 7h6"></path>
+            <path d="M14 7h6"></path>
+            <circle cx="12" cy="7" r="2"></circle>
+            <path d="M4 17h10"></path>
+            <path d="M18 17h2"></path>
+            <circle cx="16" cy="17" r="2"></circle>
+          </svg>
+        </span>
+        <span><strong>页面设置</strong><small>排序、折叠与缓存</small></span>
       </button>
       <div class="side-nav-foot">
         <span>非官方社区项目 · MIT License</span>
@@ -119,17 +157,6 @@
             <div id="statsGrid" class="stats-grid"></div>
           </section>
 
-          <section class="content-section" data-section-key="attendance" aria-labelledby="attendanceTitle">
-            <div class="section-heading">
-              <div>
-                <span class="eyebrow">出勤</span>
-                <h2 id="attendanceTitle">出勤情况</h2>
-              </div>
-              <p class="section-note">异常记录优先；统计口径以教师在 TronClass 的设置为准。</p>
-            </div>
-            <div id="attendanceGrid" class="attendance-grid"></div>
-          </section>
-
           <section class="content-section" data-section-key="tasks" aria-labelledby="tasksTitle">
             <div class="section-heading section-heading-with-controls">
               <div class="task-heading-copy">
@@ -174,6 +201,17 @@
             <div id="taskList" class="task-list"></div>
           </section>
 
+          <section class="content-section" data-section-key="attendance" aria-labelledby="attendanceTitle">
+            <div class="section-heading">
+              <div>
+                <span class="eyebrow">出勤</span>
+                <h2 id="attendanceTitle">出勤情况</h2>
+              </div>
+              <p class="section-note">异常记录优先；统计口径以教师在 TronClass 的设置为准。</p>
+            </div>
+            <div id="attendanceGrid" class="attendance-grid"></div>
+          </section>
+
           <section class="content-section" data-section-key="materials" aria-labelledby="materialsTitle">
             <div class="section-heading section-heading-with-controls">
               <div>
@@ -200,6 +238,73 @@
         </div>
       </div>
 
+      <div id="gradesPage" class="page-view is-hidden">
+        <section class="grades-page-heading">
+          <div>
+            <span class="eyebrow">已提交项目</span>
+            <h2>成绩展示</h2>
+            <p>通过 TronClass 后台接口读取本人已提交的作业、问卷和线上考试成绩；空分数不会被当作 0 分。</p>
+          </div>
+          <button id="gradeRefreshButton" class="button button-primary" type="button">刷新成绩</button>
+        </section>
+
+        <section class="control-panel grades-controls" aria-label="成绩范围与筛选">
+          <div class="scope-switch" role="group" aria-label="成绩学期范围">
+            <button class="grade-scope-button is-active" data-grade-scope="current" type="button">当前学期</button>
+            <button class="grade-scope-button" data-grade-scope="history" type="button">历史学期</button>
+          </div>
+          <div class="grade-filter-row">
+            <select id="gradeHistoryTermSelect" class="select is-hidden" aria-label="选择历史学期"></select>
+            <select id="gradeCourseFilter" class="select" aria-label="按课程筛选成绩"></select>
+            <select id="gradeTypeFilter" class="select" aria-label="按类型筛选成绩">
+              <option value="all">全部类型</option>
+              <option value="homework">作业</option>
+              <option value="questionnaire">问卷</option>
+              <option value="exam">线上考试</option>
+            </select>
+            <select id="gradeStatusFilter" class="select" aria-label="按公布状态筛选成绩">
+              <option value="all">全部状态</option>
+              <option value="published">成绩已公布</option>
+              <option value="unpublished">成绩未公布</option>
+              <option value="not_scored">不计分</option>
+            </select>
+          </div>
+        </section>
+
+        <section id="gradeEmpty" class="grade-state-card">
+          <div class="grade-state-icon" aria-hidden="true">分</div>
+          <div><strong>准备读取当前学期成绩</strong><p id="gradeEmptyMessage">进入本页后会读取当前平台学期的全部课程。关闭自动刷新时，只使用上次缓存。</p></div>
+        </section>
+
+        <section id="gradeLoading" class="grade-state-card is-hidden" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <div><strong id="gradeLoadingTitle">正在读取成绩…</strong><p id="gradeLoadingDetail">只读取已提交项目的成绩状态。</p></div>
+        </section>
+
+        <section id="gradeError" class="grade-state-card grade-state-error is-hidden" role="alert">
+          <div class="grade-state-icon" aria-hidden="true">!</div>
+          <div><strong>成绩读取失败</strong><p id="gradeErrorMessage">请确认已登录 TronClass 后重试。</p></div>
+        </section>
+
+        <div id="gradeContent" class="is-hidden">
+          <section class="grade-summary">
+            <div><span>已提交项目</span><strong id="gradeTotalCount">0</strong></div>
+            <div><span>已公布成绩</span><strong id="gradePublishedCount">0</strong></div>
+            <div><span>成绩未公布</span><strong id="gradeUnpublishedCount">0</strong></div>
+            <div><span>不计分问卷</span><strong id="gradeNotScoredCount">0</strong></div>
+          </section>
+          <div class="grade-list-heading">
+            <div><span class="eyebrow">成绩明细</span><h3 id="gradeTermTitle">当前学期</h3></div>
+            <p id="gradeRefreshMeta" class="section-note">尚未读取</p>
+          </div>
+          <div id="gradeList" class="grade-course-list"></div>
+          <section id="gradeErrorsSection" class="content-section error-section is-hidden">
+            <div class="section-heading"><div><span class="eyebrow">局部错误</span><h3>部分成绩未能读取</h3></div></div>
+            <ul id="gradeErrorsList" class="errors-list"></ul>
+          </section>
+        </div>
+      </div>
+
       <div id="battlePage" class="page-view is-hidden">
         <section class="battle-page-heading">
           <div>
@@ -210,7 +315,6 @@
           <div id="battleResultActions" class="battle-actions is-hidden">
             <button id="battleRestoreButton" class="button button-secondary" type="button" disabled>恢复完整统计</button>
             <button id="battleRegenerateButton" class="button button-secondary" type="button">重新生成</button>
-            <button id="battleShareButton" class="button battle-share-button" type="button">一键分享图</button>
           </div>
         </section>
 
@@ -218,7 +322,7 @@
           <div class="battle-empty-art" aria-hidden="true"><span>★</span></div>
           <span class="eyebrow">首次进入不会自动扫描</span>
           <h3>生成你的城大战绩</h3>
-          <p>将以 2 门课程的小并发读取帐号下全部课程，只请求普通作业与个人考勤。匿名报告会保存为本地缓存，分享图片不会写入扩展存储。</p>
+          <p>将以 2 门课程的小并发读取帐号下全部课程，只请求普通作业与个人考勤。匿名报告会保存为本地缓存。</p>
           <button id="battleGenerateButton" class="button battle-generate-button" type="button">生成城大战绩</button>
         </section>
 
@@ -248,6 +352,8 @@
             <div class="battle-hero-copy">
               <span class="battle-kicker">CITYU TRONCLASS BATTLE REPORT</span>
               <h3 id="battleTitle">暂无等级</h3>
+              <p id="battlePersonaQuip" class="battle-persona-quip"></p>
+              <div id="battlePersonaKeywords" class="battle-persona-keywords" aria-label="战绩关键词"></div>
               <div id="battleIncompleteBadge" class="battle-incomplete-badge is-hidden">数据可能不完整</div>
             </div>
             <div class="battle-risk-gauge">
@@ -298,6 +404,39 @@
             </div>
           </section>
         </div>
+      </div>
+
+      <div id="settingsPage" class="page-view is-hidden">
+        <section class="settings-page-heading">
+          <div>
+            <span class="eyebrow">个性化与本地数据</span>
+            <h2>页面设置</h2>
+            <p>调整学习总览栏目顺序、默认折叠状态，以及本机上的声明、通知和匿名缓存设置。</p>
+          </div>
+        </section>
+
+        <form id="settingsForm" class="settings-card settings-page-card">
+          <div class="settings-header">
+            <div><span class="eyebrow">学习总览布局</span><h3 id="settingsTitle">调整栏目顺序与折叠状态</h3></div>
+          </div>
+          <div class="settings-subheading"><strong>栏目顺序</strong><span>使用上下按钮调整出勤、作业和课程文件的显示次序。</span></div>
+          <div id="sectionSettingsList" class="section-settings-list"></div>
+          <label class="settings-notice-control">
+            <span><strong>每次打开显示使用声明</strong><small>关闭后不再自动展示；许可条款与免责声明仍然适用。</small></span>
+            <span class="switch"><input id="settingsShowUsageNotice" type="checkbox"><span aria-hidden="true"></span></span>
+          </label>
+          <div class="settings-notice-control settings-notice-action">
+            <span><strong>启动通知</strong><small>清除当前通知的忽略记录，并立即重新显示这一版通知。</small></span>
+            <button id="settingsResetAnnouncementButton" class="button button-secondary button-small" type="button">重新显示已忽略通知</button>
+          </div>
+          <div class="settings-actions">
+            <button id="clearCacheButton" class="button button-link danger-link" type="button">清除上次数据</button>
+            <div class="settings-actions-right">
+              <button id="settingsResetButton" class="button button-secondary" type="button">恢复默认</button>
+              <button id="settingsApplyButton" class="button button-primary" type="button">应用设置</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   </main>
@@ -381,35 +520,11 @@
           <input id="startupAnnouncementDontShow" type="checkbox">
           <span><strong>不再显示这条通知</strong><small>仅忽略内容完全相同的通知，内容更新后会再次展示。</small></span>
         </label>
-        <button id="startupAnnouncementProjectButton" class="button button-secondary" type="button">查看开源项目与使用说明</button>
-      </footer>
-    </form>
-  </dialog>
-
-  <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
-    <form method="dialog" class="settings-card">
-      <div class="settings-header">
-        <div><span class="eyebrow">页面设置</span><h2 id="settingsTitle">调整栏目顺序与折叠状态</h2></div>
-        <button id="settingsCloseButton" class="button button-link" type="button" aria-label="关闭页面设置">关闭</button>
-      </div>
-      <p class="settings-privacy">页面设置与匿名学习缓存会保存在浏览器本地；不保存姓名、学号、登录凭证、签名文件地址或文件内容。</p>
-      <div class="settings-subheading"><strong>栏目顺序</strong><span>使用上下按钮调整出勤、作业和课程文件的显示次序。</span></div>
-      <div id="sectionSettingsList" class="section-settings-list"></div>
-      <label class="settings-notice-control">
-        <span><strong>每次打开显示使用声明</strong><small>关闭后不再自动展示；许可条款与免责声明仍然适用。</small></span>
-        <span class="switch"><input id="settingsShowUsageNotice" type="checkbox"><span aria-hidden="true"></span></span>
-      </label>
-      <div class="settings-notice-control settings-notice-action">
-        <span><strong>启动通知</strong><small>清除当前通知的忽略记录，并立即重新显示这一版通知。</small></span>
-        <button id="settingsResetAnnouncementButton" class="button button-secondary button-small" type="button">重新显示已忽略通知</button>
-      </div>
-      <div class="settings-actions">
-        <button id="clearCacheButton" class="button button-link danger-link" type="button">清除上次数据</button>
-        <div class="settings-actions-right">
-          <button id="settingsResetButton" class="button button-secondary" type="button">恢复默认</button>
-          <button id="settingsApplyButton" class="button button-primary" type="button">应用设置</button>
+        <div class="announcement-button-group">
+          <button id="startupAnnouncementProjectButton" class="button button-secondary" type="button">查看开源项目与使用说明</button>
+          <button id="startupAnnouncementConfirmButton" class="button button-primary" type="button">确定并进入</button>
         </div>
-      </div>
+      </footer>
     </form>
   </dialog>
 

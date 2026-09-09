@@ -1,9 +1,10 @@
 import { AuthError, TronClassApi } from "./lib/api.js";
 import { announcementContent, announcementFingerprint } from "./lib/announcement.js";
 import { battleRecordKey, deriveBattleReport, groupReportRecords, reportRecordDescription } from "./lib/battle-report.js";
-import { createBattleReportPng } from "./lib/report-image.js";
-import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, createBattleReportCache, createDashboardCache, readBattleReportCache, readDashboardCache } from "./lib/cache.js";
+import { buildBattlePersona } from "./lib/battle-persona.js";
+import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, GRADE_CACHE_KEY, createBattleReportCache, createDashboardCache, createGradeCache, readBattleReportCache, readDashboardCache, readGradeCache } from "./lib/cache.js";
 import { compareVersions, displayVersion } from "./lib/version.js";
+import { GRADE_STATUS_LABELS, GRADE_TYPE_LABELS, groupCoursesByTerm } from "./lib/grades.js";
 import {
   STATUS_LABELS,
   TYPE_LABELS,
@@ -37,8 +38,8 @@ const STARTUP_ANNOUNCEMENT = Object.freeze({
   actionUrl: PROJECT_URL
 });
 const USAGE_ACKNOWLEDGEMENT = "我已知本软件可能出现漏报、错报、重复、延迟或无法读取等情况。我会自行以 TronClass 原页面、课程通知及教师要求为准，并自行承担使用本插件造成的所有后果。";
-const DEFAULT_SECTION_ORDER = Object.freeze(["attendance", "tasks", "materials"]);
-const DEFAULT_COLLAPSED = Object.freeze({ overview: false, attendance: false, tasks: false, materials: false });
+const DEFAULT_SECTION_ORDER = Object.freeze(["tasks", "attendance", "materials"]);
+const DEFAULT_COLLAPSED = Object.freeze({ overview: false, tasks: false, attendance: true, materials: false });
 const SECTION_LABELS = Object.freeze({
   overview: "统计面板",
   attendance: "出勤情况",
@@ -67,6 +68,17 @@ const state = {
   hiddenAttendanceKeys: new Set(),
   hiddenHomeworkKeys: new Set(),
   ignoredActivityKeys: new Set(),
+  grades: [],
+  gradeErrors: [],
+  gradeCourses: [],
+  gradeScope: "current",
+  gradeHistoryTermKey: null,
+  gradeLoadedTermKey: null,
+  gradeRefreshedAt: null,
+  gradeLoading: false,
+  gradeInitialized: false,
+  gradeCache: null,
+  gradeFilters: { course: "all", type: "all", status: "all" },
   battleReportLoading: false,
   hasDashboardCache: false,
   filters: { taskCourse: "all", taskStatus: "attention", taskType: "all", materialCourse: "all" },
@@ -86,19 +98,23 @@ const dom = Object.fromEntries([
   "loadingTitle", "loadingDetail", "dashboardContent", "scopeDescription", "historyCourseSelect",
   "courseSummary", "statsGrid", "attendanceGrid", "taskCourseFilter", "taskStatusFilter",
   "taskTypeFilter", "taskList", "hiddenTasksMenu", "hiddenTaskCount", "hiddenTaskList", "restoreAllHiddenTasks", "materialCourseFilter", "materialsList", "errorsSection",
-  "errorsList", "toastRegion", "settingsButton", "settingsDialog", "settingsCloseButton",
-  "settingsResetButton", "settingsApplyButton", "sectionSettingsList", "autoRefreshToggle", "clearCacheButton", "overviewPage", "battlePage",
-  "battleResultActions", "battleRestoreButton", "battleRegenerateButton", "battleShareButton", "battleEmpty", "battleGenerateButton",
+  "errorsList", "toastRegion", "settingsPage", "settingsForm", "settingsResetButton", "settingsApplyButton",
+  "sectionSettingsList", "autoRefreshToggle", "clearCacheButton", "overviewPage", "gradesPage", "battlePage",
+  "gradeRefreshButton", "gradeHistoryTermSelect", "gradeCourseFilter", "gradeTypeFilter", "gradeStatusFilter",
+  "gradeEmpty", "gradeEmptyMessage", "gradeLoading", "gradeLoadingTitle", "gradeLoadingDetail", "gradeError", "gradeErrorMessage",
+  "gradeContent", "gradeTotalCount", "gradePublishedCount", "gradeUnpublishedCount", "gradeNotScoredCount",
+  "gradeTermTitle", "gradeRefreshMeta", "gradeList", "gradeErrorsSection", "gradeErrorsList",
+  "battleResultActions", "battleRestoreButton", "battleRegenerateButton", "battleEmpty", "battleGenerateButton",
   "battleLoading", "battleProgressTitle", "battleProgressDetail", "battleProgressBar", "battleProgressPercent",
   "battleError", "battleErrorMessage", "battleRetryButton", "battleResult", "battleGradeBadge", "battleGrade",
-  "battleTitle", "battleIncompleteBadge", "battleRiskRing", "battleRiskValue", "battleStats",
+  "battleTitle", "battlePersonaQuip", "battlePersonaKeywords", "battleIncompleteBadge", "battleRiskRing", "battleRiskValue", "battleStats",
   "battleAttendanceRate", "battleAttendanceMeter", "battleAttendanceHelp", "battleHomeworkRate",
   "battleHomeworkMeter", "battleHomeworkHelp", "battleWarning", "battleFailedCourses", "battleCoverage",
   "battleAbsenceCount", "battleMissingCount", "battleAbsenceRecords", "battleMissingRecords", "usageNoticeDialog",
   "usageNoticeDontShow", "usageNoticeCopyButton", "usageNoticeAcknowledgement", "usageNoticeMatchStatus",
   "usageNoticeConfirmButton", "startupAnnouncementDialog", "startupAnnouncementLabel", "startupAnnouncementPublishedAt",
   "startupAnnouncementTitle", "startupAnnouncementContent", "startupAnnouncementParagraphs", "startupAnnouncementItems",
-  "startupAnnouncementProjectButton", "startupAnnouncementDontShow", "startupAnnouncementCloseButton",
+  "startupAnnouncementProjectButton", "startupAnnouncementConfirmButton", "startupAnnouncementDontShow", "startupAnnouncementCloseButton",
   "settingsShowUsageNotice", "settingsResetAnnouncementButton", "currentVersion", "noticeCurrentVersion", "versionCheckStatus",
   "updateNotice", "latestVersion", "updateCurrentVersion"
 ].map((id) => [id, document.getElementById(id)]));
@@ -252,7 +268,6 @@ async function restoreStartupAnnouncement() {
   try {
     await saveUiPreferences();
     dom.settingsResetAnnouncementButton.disabled = true;
-    dom.settingsDialog.close();
     await showStartupAnnouncement();
   } catch (error) {
     state.ui.ignoredAnnouncementFingerprint = previous;
@@ -417,10 +432,19 @@ async function loadCaches() {
   const storage = globalThis.chrome?.storage?.local;
   if (!storage) return false;
   try {
-    const stored = await storage.get([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY]);
+    const stored = await storage.get([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY]);
     const dashboardCache = readDashboardCache(stored?.[DASHBOARD_CACHE_KEY]);
     const battleCache = readBattleReportCache(stored?.[BATTLE_REPORT_CACHE_KEY]);
+    const gradeCache = readGradeCache(stored?.[GRADE_CACHE_KEY]);
     if (dashboardCache) applyDashboardCache(dashboardCache);
+    if (gradeCache) {
+      state.gradeCache = gradeCache;
+      if (!state.courses.length) {
+        state.courses = gradeCache.courses;
+        ({ ongoing: state.ongoing, history: state.history } = splitCoursesByPlatformTerm(state.courses));
+      }
+      updateGradeScopeControls();
+    }
     if (battleCache) {
       state.rawBattleReport = battleCache.rawReport;
       state.hiddenAttendanceKeys = new Set(battleCache.hiddenAttendanceKeys);
@@ -429,7 +453,7 @@ async function loadCaches() {
       dom.battleEmpty.classList.add("is-hidden");
       renderBattleReport(state.battleReport);
     }
-    return Boolean(dashboardCache || battleCache);
+    return Boolean(dashboardCache || battleCache || gradeCache);
   } catch (error) {
     console.warn("无法读取本地缓存", error);
     await clearInvalidCaches();
@@ -523,7 +547,7 @@ async function saveBattleReportCache() {
 
 async function clearInvalidCaches() {
   const storage = globalThis.chrome?.storage?.local;
-  try { await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY]); } catch { /* ignore */ }
+  try { await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY]); } catch { /* ignore */ }
 }
 
 function battleExclusions() {
@@ -568,7 +592,7 @@ function setSectionCollapsed(section, collapsed) {
   toggle.setAttribute("aria-expanded", String(!collapsed));
 }
 
-function openSettings() {
+function prepareSettingsPage() {
   state.ui.settingsDraft = {
     sectionOrder: [...state.ui.sectionOrder],
     defaultCollapsed: { ...state.ui.defaultCollapsed },
@@ -577,7 +601,6 @@ function openSettings() {
   dom.settingsShowUsageNotice.checked = !state.ui.settingsDraft.suppressUsageNotice;
   dom.settingsResetAnnouncementButton.disabled = !state.ui.ignoredAnnouncementFingerprint;
   renderSectionSettings();
-  dom.settingsDialog.showModal();
 }
 
 function renderSectionSettings() {
@@ -642,7 +665,6 @@ async function applySettings() {
   }
   try {
     await saveUiPreferences();
-    dom.settingsDialog.close();
     toast("页面设置已保存，将长期生效");
   } catch (error) {
     toast(`页面设置已应用，但保存失败：${error?.message || String(error)}`, true);
@@ -652,9 +674,12 @@ async function applySettings() {
 async function clearStoredData() {
   const storage = globalThis.chrome?.storage?.local;
   try {
-    await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY]);
+    await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY]);
     state.dashboardCache = null;
     state.hasDashboardCache = false;
+    // 只删除持久化成绩缓存；当前页面已经读取的成绩继续保留在内存中，
+    // 与学习总览和城大战绩的“关闭页面前仍可查看”行为保持一致。
+    state.gradeCache = null;
     state.hiddenAttendanceKeys.clear();
     state.hiddenHomeworkKeys.clear();
     state.ignoredActivityKeys.clear();
@@ -682,14 +707,24 @@ function applySectionOrder() {
 }
 
 function bindEvents() {
-  document.querySelectorAll(".side-nav-button").forEach((navButton) => {
+  document.querySelectorAll(".side-nav-button[data-page]").forEach((navButton) => {
     navButton.addEventListener("click", () => switchPage(navButton.dataset.page));
   });
+  dom.gradeRefreshButton.addEventListener("click", () => refreshGrades({ manual: true }));
+  document.querySelectorAll(".grade-scope-button").forEach((scopeButton) => {
+    scopeButton.addEventListener("click", () => selectGradeScope(scopeButton.dataset.gradeScope));
+  });
+  dom.gradeHistoryTermSelect.addEventListener("change", () => {
+    state.gradeHistoryTermKey = dom.gradeHistoryTermSelect.value || null;
+    void loadSelectedGradeTerm();
+  });
+  dom.gradeCourseFilter.addEventListener("change", () => { state.gradeFilters.course = dom.gradeCourseFilter.value; renderGrades(); });
+  dom.gradeTypeFilter.addEventListener("change", () => { state.gradeFilters.type = dom.gradeTypeFilter.value; renderGrades(); });
+  dom.gradeStatusFilter.addEventListener("change", () => { state.gradeFilters.status = dom.gradeStatusFilter.value; renderGrades(); });
   dom.battleGenerateButton.addEventListener("click", generateBattleReport);
   dom.battleRestoreButton.addEventListener("click", restoreFullBattleReport);
   dom.battleRegenerateButton.addEventListener("click", generateBattleReport);
   dom.battleRetryButton.addEventListener("click", generateBattleReport);
-  dom.battleShareButton.addEventListener("click", (event) => shareBattleReport(event.currentTarget));
   dom.refreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
   dom.loginButton.addEventListener("click", () => openUrl("https://tronclass.cityu.edu.mo/"));
   dom.loginRefreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
@@ -727,8 +762,6 @@ function bindEvents() {
   dom.taskTypeFilter.addEventListener("change", () => { state.filters.taskType = dom.taskTypeFilter.value; renderTasks(); });
   dom.restoreAllHiddenTasks.addEventListener("click", restoreAllIgnoredActivities);
   dom.materialCourseFilter.addEventListener("change", () => { state.filters.materialCourse = dom.materialCourseFilter.value; renderMaterials(); });
-  dom.settingsButton.addEventListener("click", openSettings);
-  dom.settingsCloseButton.addEventListener("click", () => dom.settingsDialog.close());
   dom.settingsResetButton.addEventListener("click", resetSettingsDraft);
   dom.settingsApplyButton.addEventListener("click", applySettings);
   dom.settingsShowUsageNotice.addEventListener("change", () => {
@@ -737,9 +770,6 @@ function bindEvents() {
   dom.settingsResetAnnouncementButton.addEventListener("click", restoreStartupAnnouncement);
   dom.clearCacheButton.addEventListener("click", clearStoredData);
   dom.autoRefreshToggle.addEventListener("change", handleAutoRefreshToggle);
-  dom.settingsDialog.addEventListener("click", (event) => {
-    if (event.target === dom.settingsDialog) dom.settingsDialog.close();
-  });
   dom.usageNoticeDialog.addEventListener("cancel", (event) => event.preventDefault());
   dom.usageNoticeCopyButton.addEventListener("click", copyUsageAcknowledgement);
   dom.usageNoticeAcknowledgement.addEventListener("input", handleUsageAcknowledgementInput);
@@ -749,9 +779,9 @@ function bindEvents() {
     if (announcement?.actionUrl) openUrl(announcement.actionUrl);
   });
   dom.startupAnnouncementCloseButton.addEventListener("click", () => dom.startupAnnouncementDialog.close());
+  dom.startupAnnouncementConfirmButton.addEventListener("click", () => dom.startupAnnouncementDialog.close());
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "SHOW_STARTUP_PROMPTS") return false;
-    if (dom.settingsDialog.open) dom.settingsDialog.close();
     showStartupPrompts().then(() => sendResponse({ ok: true }));
     return true;
   });
@@ -765,7 +795,10 @@ async function handleAutoRefreshToggle() {
   try {
     await saveUiPreferences();
     toast(enabled ? "自动刷新已开启" : "自动刷新已关闭；进入插件时将直接使用上次缓存");
-    if (enabled && !previous) await refresh({ firstLoad: !state.hasDashboardCache });
+    if (enabled && !previous) {
+      await refresh({ firstLoad: !state.hasDashboardCache });
+      if (state.page === "grades") await refreshGrades({ manual: false });
+    }
   } catch (error) {
     state.ui.autoRefresh = previous;
     dom.autoRefreshToggle.checked = previous;
@@ -779,17 +812,248 @@ function dashboardCacheMatchesScope() {
 }
 
 function switchPage(page) {
-  if (!['overview', 'battle'].includes(page)) return;
+  if (!["overview", "grades", "battle", "settings"].includes(page)) return;
   state.page = page;
   dom.overviewPage.classList.toggle("is-hidden", page !== "overview");
+  dom.gradesPage.classList.toggle("is-hidden", page !== "grades");
   dom.battlePage.classList.toggle("is-hidden", page !== "battle");
-  document.querySelectorAll(".side-nav-button").forEach((navButton) => {
+  dom.settingsPage.classList.toggle("is-hidden", page !== "settings");
+  document.querySelectorAll(".side-nav-button[data-page]").forEach((navButton) => {
     const active = navButton.dataset.page === page;
     navButton.classList.toggle("is-active", active);
     if (active) navButton.setAttribute("aria-current", "page");
     else navButton.removeAttribute("aria-current");
   });
   document.querySelectorAll(".overview-action").forEach((node) => node.classList.toggle("is-hidden", page !== "overview"));
+  if (page === "settings") prepareSettingsPage();
+  if (page === "grades") void prepareGradesPage();
+}
+
+async function prepareGradesPage() {
+  updateGradeScopeControls();
+  if (state.gradeInitialized) {
+    if (state.gradeLoadedTermKey) renderGrades();
+    return;
+  }
+  state.gradeInitialized = true;
+  const cached = applySelectedGradeCache();
+  if (state.ui.autoRefresh) await refreshGrades({ manual: false });
+  else if (!cached) showGradeOfflineEmpty();
+}
+
+function gradeTerms() {
+  const courses = state.courses.length ? state.courses : (state.gradeCache?.courses || []);
+  return groupCoursesByTerm(courses);
+}
+
+function selectedGradeTerm() {
+  const terms = gradeTerms();
+  if (!terms.length) return null;
+  if (state.gradeScope === "current") return terms[0];
+  const history = terms.slice(1);
+  if (!state.gradeHistoryTermKey || !history.some((term) => term.key === state.gradeHistoryTermKey)) {
+    state.gradeHistoryTermKey = history[0]?.key || null;
+  }
+  return history.find((term) => term.key === state.gradeHistoryTermKey) || null;
+}
+
+function updateGradeScopeControls() {
+  const terms = gradeTerms();
+  const history = terms.slice(1);
+  if (!state.gradeHistoryTermKey || !history.some((term) => term.key === state.gradeHistoryTermKey)) {
+    state.gradeHistoryTermKey = history[0]?.key || null;
+  }
+  document.querySelectorAll(".grade-scope-button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.gradeScope === state.gradeScope);
+  });
+  dom.gradeHistoryTermSelect.classList.toggle("is-hidden", state.gradeScope !== "history");
+  replaceOptions(dom.gradeHistoryTermSelect, history.map((term) => ({
+    value: term.key,
+    label: `${term.name}（${term.courses.length} 门课程）`
+  })), state.gradeHistoryTermKey || "", "暂无历史学期");
+}
+
+async function selectGradeScope(scope) {
+  if (state.gradeLoading || !["current", "history"].includes(scope) || state.gradeScope === scope) return;
+  state.gradeScope = scope;
+  updateGradeScopeControls();
+  await loadSelectedGradeTerm();
+}
+
+async function loadSelectedGradeTerm() {
+  const cached = applySelectedGradeCache();
+  if (!state.ui.autoRefresh) {
+    if (!cached) showGradeOfflineEmpty();
+    return;
+  }
+  await refreshGrades({ manual: false });
+}
+
+function applySelectedGradeCache() {
+  const term = selectedGradeTerm();
+  const cached = state.gradeCache?.terms?.find((item) => item.key === term?.key);
+  if (!term || !cached) return false;
+  state.gradeCourses = term.courses;
+  state.grades = cached.grades || [];
+  state.gradeErrors = cached.errors || [];
+  state.gradeLoadedTermKey = term.key;
+  state.gradeRefreshedAt = cached.refreshedAt ? new Date(cached.refreshedAt) : null;
+  dom.gradeEmpty.classList.add("is-hidden");
+  dom.gradeLoading.classList.add("is-hidden");
+  dom.gradeError.classList.add("is-hidden");
+  dom.gradeContent.classList.remove("is-hidden");
+  renderGrades();
+  return true;
+}
+
+function showGradeOfflineEmpty() {
+  state.gradeCourses = [];
+  state.grades = [];
+  state.gradeErrors = [];
+  state.gradeLoadedTermKey = null;
+  dom.gradeLoading.classList.add("is-hidden");
+  dom.gradeError.classList.add("is-hidden");
+  dom.gradeContent.classList.add("is-hidden");
+  dom.gradeEmpty.classList.remove("is-hidden");
+  dom.gradeEmptyMessage.textContent = "该学期暂无成绩缓存。自动刷新已关闭，点击“刷新成绩”后才会读取 TronClass。";
+}
+
+async function refreshGrades({ manual = false } = {}) {
+  if (state.gradeLoading) return;
+  if (!manual && !state.ui.autoRefresh) {
+    showGradeOfflineEmpty();
+    return;
+  }
+  state.gradeLoading = true;
+  dom.gradeRefreshButton.disabled = true;
+  dom.gradeRefreshButton.textContent = "读取中…";
+  const fallbackTermKey = selectedGradeTerm()?.key || null;
+  const hadCache = applySelectedGradeCache();
+  dom.gradeEmpty.classList.add("is-hidden");
+  dom.gradeError.classList.add("is-hidden");
+  dom.gradeLoading.classList.remove("is-hidden");
+  dom.gradeLoadingTitle.textContent = "正在读取课程与成绩…";
+  dom.gradeLoadingDetail.textContent = "准备连接 TronClass 后台接口。";
+
+  try {
+    if (!state.courses.length) {
+      state.courses = await api.getCourses();
+      ({ ongoing: state.ongoing, history: state.history } = splitCoursesByPlatformTerm(state.courses));
+      updateScopeControls();
+      updateGradeScopeControls();
+    }
+    const term = selectedGradeTerm();
+    if (!term) {
+      state.gradeCourses = [];
+      state.grades = [];
+      state.gradeErrors = [];
+      state.gradeLoadedTermKey = null;
+      dom.gradeLoading.classList.add("is-hidden");
+      dom.gradeContent.classList.remove("is-hidden");
+      renderGrades();
+      return;
+    }
+    state.gradeCourses = term.courses;
+    const result = await api.loadGradesCourses(term.courses, {
+      onProgress: ({ completed, total, course, errors }) => {
+        dom.gradeLoadingTitle.textContent = `已读取 ${completed}/${total} 门课程`;
+        dom.gradeLoadingDetail.textContent = `${course.name}${errors.length ? " · 部分成绩接口不可用" : " · 读取完成"}`;
+      }
+    });
+    state.grades = result.grades;
+    state.gradeErrors = result.errors;
+    state.gradeLoadedTermKey = term.key;
+    state.gradeRefreshedAt = new Date();
+    clearAuthenticationPrompt();
+    await saveGradeTermCache(term);
+    dom.gradeLoading.classList.add("is-hidden");
+    dom.gradeContent.classList.remove("is-hidden");
+    renderGrades();
+  } catch (error) {
+    dom.gradeLoading.classList.add("is-hidden");
+    const recovered = hadCache || (fallbackTermKey && state.gradeCache?.terms?.some((item) => item.key === fallbackTermKey) && applySelectedGradeCache());
+    dom.gradeError.classList.remove("is-hidden");
+    dom.gradeErrorMessage.textContent = error instanceof AuthError
+      ? `${error.message}。请先登录 TronClass，再点击“刷新成绩”。${recovered ? "当前继续显示上次缓存。" : ""}`
+      : `读取失败：${error?.message || String(error)}。${recovered ? "当前继续显示上次缓存。" : ""}`;
+    if (error instanceof AuthError) showAuthenticationBanner("成绩接口无法确认当前登录状态。请先登录 TronClass，然后重新刷新成绩。");
+  } finally {
+    state.gradeLoading = false;
+    dom.gradeRefreshButton.disabled = false;
+    dom.gradeRefreshButton.textContent = "刷新成绩";
+  }
+}
+
+async function saveGradeTermCache(term) {
+  const storage = globalThis.chrome?.storage?.local;
+  if (!storage || !term) return;
+  const previousTerms = state.gradeCache?.terms || [];
+  const nextTerm = {
+    key: term.key,
+    name: term.name,
+    courseIds: term.courses.map((course) => course.id),
+    grades: state.grades,
+    errors: state.gradeErrors,
+    refreshedAt: state.gradeRefreshedAt
+  };
+  const cache = createGradeCache({
+    courses: state.courses,
+    terms: [...previousTerms.filter((item) => item.key !== term.key), nextTerm]
+  });
+  await storage.set({ [GRADE_CACHE_KEY]: cache });
+  state.gradeCache = cache;
+}
+
+function renderGrades() {
+  const term = selectedGradeTerm();
+  updateGradeScopeControls();
+  state.gradeCourses = term?.courses || state.gradeCourses || [];
+  const allGrades = state.grades || [];
+  const courseOptions = state.gradeCourses.map((course) => ({ value: String(course.id), label: course.name }));
+  if (!state.gradeCourses.some((course) => String(course.id) === state.gradeFilters.course)) state.gradeFilters.course = "all";
+  replaceOptions(dom.gradeCourseFilter, [{ value: "all", label: "全部课程" }, ...courseOptions], state.gradeFilters.course);
+  dom.gradeTypeFilter.value = state.gradeFilters.type;
+  dom.gradeStatusFilter.value = state.gradeFilters.status;
+
+  dom.gradeTotalCount.textContent = String(allGrades.length);
+  dom.gradePublishedCount.textContent = String(allGrades.filter((item) => item.scoreStatus === "published").length);
+  dom.gradeUnpublishedCount.textContent = String(allGrades.filter((item) => item.scoreStatus === "unpublished").length);
+  dom.gradeNotScoredCount.textContent = String(allGrades.filter((item) => item.scoreStatus === "not_scored").length);
+  dom.gradeTermTitle.textContent = term?.name || (state.gradeScope === "current" ? "当前学期" : "历史学期");
+  dom.gradeRefreshMeta.textContent = state.gradeRefreshedAt ? `读取于 ${formatFullDateTime(state.gradeRefreshedAt)}` : "尚未读取";
+
+  const filtered = allGrades.filter((item) =>
+    (state.gradeFilters.course === "all" || String(item.courseId) === state.gradeFilters.course) &&
+    (state.gradeFilters.type === "all" || item.sourceType === state.gradeFilters.type) &&
+    (state.gradeFilters.status === "all" || item.scoreStatus === state.gradeFilters.status)
+  );
+  const groups = groupBy(filtered, (item) => item.courseId);
+  const cards = state.gradeCourses.filter((course) => groups.has(course.id)).map((course) => {
+    const items = groups.get(course.id);
+    const card = element("section", "grade-course-card");
+    const header = element("div", "grade-course-header");
+    header.append(element("h4", "", course.name), element("span", "", `${items.length} 个已提交项目`));
+    card.append(header, ...items.map(renderGradeRow));
+    return card;
+  });
+  dom.gradeList.replaceChildren(...(cards.length ? cards : [emptyState("没有符合条件的成绩", allGrades.length ? "请调整课程、类型或公布状态筛选。" : "当前学期尚未读取到已提交的作业、问卷或线上考试。") ]));
+
+  dom.gradeErrorsSection.classList.toggle("is-hidden", !state.gradeErrors.length);
+  dom.gradeErrorsList.replaceChildren(...state.gradeErrors.map((error) => element("li", "", `${error.courseName} · ${error.section}：${error.message}`)));
+}
+
+function renderGradeRow(item) {
+  const row = element("article", "grade-row");
+  const main = element("div", "grade-main");
+  main.append(element("strong", "grade-title", item.title));
+  if (item.submittedAt) main.append(element("span", "grade-submitted", `提交于 ${formatDateTime(item.submittedAt)}`));
+  const type = element("span", "badge badge-type grade-badge", GRADE_TYPE_LABELS[item.sourceType] || item.sourceType);
+  const scoreClass = item.scoreStatus === "published" ? "grade-score" : `grade-score is-${item.scoreStatus === "not_scored" ? "not-scored" : "unpublished"}`;
+  const score = element("strong", scoreClass, item.scoreText);
+  score.title = GRADE_STATUS_LABELS[item.scoreStatus] || "成绩状态";
+  const weight = element("span", "grade-weight", Number.isFinite(item.weight) ? `权重 ${item.weight}%` : "未标注权重");
+  row.append(main, type, score, weight, button("查看详情", "button button-link button-small", () => openUrl(item.directUrl)));
+  return row;
 }
 
 async function generateBattleReport() {
@@ -861,6 +1125,9 @@ function renderBattleReport(report) {
   dom.battleResult.style.setProperty("--grade-b", colors[1]);
   dom.battleGrade.textContent = report.grade || "—";
   dom.battleTitle.textContent = report.title;
+  const persona = buildBattlePersona(report);
+  dom.battlePersonaQuip.textContent = persona.quip;
+  dom.battlePersonaKeywords.replaceChildren(...persona.keywords.map((keyword) => element("span", "battle-persona-keyword", keyword)));
   dom.battleIncompleteBadge.classList.toggle("is-hidden", !report.incomplete);
   dom.battleRestoreButton.disabled = state.hiddenAttendanceKeys.size === 0 && state.hiddenHomeworkKeys.size === 0;
 
@@ -978,40 +1245,6 @@ async function restoreFullBattleReport() {
 function refreshDerivedBattleReport() {
   state.battleReport = deriveBattleReport(state.rawBattleReport, battleExclusions());
   if (state.battleReport) renderBattleReport(state.battleReport);
-}
-
-async function shareBattleReport(target) {
-  if (!state.battleReport) return;
-  await withBusyButton(target, "正在生成…", async () => {
-    const { blob, filename } = await createBattleReportPng(state.battleReport);
-    let shared = false;
-    if (globalThis.File && navigator.share && navigator.canShare) {
-      const file = new File([blob], filename, { type: "image/png" });
-      try {
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ title: "我的城大战绩", text: "城大 TronClass 匿名学习报告", files: [file] });
-          shared = true;
-        }
-      } catch {
-        shared = false;
-      }
-    }
-    if (!shared) {
-      downloadBlob(blob, filename);
-      toast("分享图已生成并下载");
-    }
-  });
-}
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 
 function animateInteger(node, target) {

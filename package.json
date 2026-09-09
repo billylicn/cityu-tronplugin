@@ -1,11 +1,11 @@
 {
   "name": "cityu-tronclass-plugin",
-  "version": "0.3.9",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "check": "node --check background.js && node --check dashboard.js && node --check lib/api.js && node --check lib/announcement.js && node --check lib/normalizers.js && node --check lib/battle-report.js && node --check lib/report-image.js && node --check lib/cache.js && node --check lib/version.js"
+    "check": "node --check background.js && node --check dashboard.js && node --check lib/api.js && node --check lib/grades.js && node --check lib/announcement.js && node --check lib/normalizers.js && node --check lib/battle-report.js && node --check lib/battle-persona.js && node --check lib/cache.js && node --check lib/version.js"
   },
   "license": "MIT"
 }
