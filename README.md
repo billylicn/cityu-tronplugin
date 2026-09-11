@@ -27,11 +27,6 @@
 
 ## 界面预览
 
-<p align="center">
-  <strong>一个页面，集中掌握真正需要关注的学习信息</strong><br>
-  <sub>点击各功能标题可展开或收起预览；点击图片可查看 1280 × 800 原图。</sub>
-</p>
-
 <details open>
   <summary><strong>学习总览</strong> — 集中查看待提交任务、出勤异常与课程文件</summary>
   <p align="center">
@@ -96,13 +91,6 @@
 
 1. 打开 [CityU TronClass Plugin 的 Chrome 网上应用商店页面](https://chromewebstore.google.com/detail/llapladneeknmifggglonmcbaolgphdp?utm_source=item-share-cb)。
 2. 点击 **添加至 Chrome**。
-3. 在确认窗口中点击 **添加扩展程序**。
-4. 在同一浏览器中登录澳门城市大学 TronClass。
-5. 点击 Chrome 工具栏的拼图按钮，将 **CityU TronClass Plugin** 固定到工具栏。
-6. 点击插件图标，打开 Dashboard。
-
-> [!TIP]
-> 通过 Chrome 网上应用商店安装的版本通常由浏览器自动更新，无需手动下载、解压或删除旧版本。
 
 ### 从 GitHub Release 手动安装
 
@@ -117,17 +105,6 @@
 
 > [!IMPORTANT]
 > 使用 GitHub Release 手动更新时，请先下载并解压新版本，再在 `chrome://extensions/` 中移除旧版 CityU TronClass Plugin，再加载新版本目录。删除旧扩展会清除插件的本地缓存、页面布局和忽略设置，但不会修改 TronClass 原站中的课程、作业、考勤或文件数据。
-
-### 从源码安装
-
-```bash
-git clone https://github.com/billylicn/cityu-tronplugin.git
-cd cityu-tronplugin
-npm test
-npm run check
-```
-
-随后在 `chrome://extensions/` 中加载项目根目录。项目没有运行时依赖或构建步骤，修改后点击扩展的“重新加载”即可。
 
 ## 隐私设计
 
@@ -167,12 +144,6 @@ npm run check
 - 综合等级取缺勤率和缺交率中较高的风险；任一项达到 20% 时为 F。两项都没有有效分母时显示“暂无等级”。
 - 缺勤或缺交记录可从统计口径中排除；排除后同步重新计算数字、比例和等级。
 
-### 课程文件下载边界
-
-- 官方允许下载：调用 `/api/uploads/reference/{referenceId}/blob`，不按扩展名限制文件类型。
-- 允许完整文档预览：实时使用平台为当前会话签发的完整预览文件地址。
-- 无法取得完整授权文件时只保留“查看活动”，不会伪造权限、猜测地址、破解加密、拼接文件或绕过 DRM。
-
 ## 项目结构
 
 ```text
@@ -187,15 +158,6 @@ npm run check
 ├── privacy.html            # 隐私说明
 └── .github/workflows/      # 自动 Release 工作流
 ```
-
-## 开发与测试
-
-```bash
-npm run check
-npm test
-```
-
-推送与 `manifest.json`、`package.json` 一致的 `vX.Y.Z` 标签后，GitHub Actions 会自动检查、测试、打包并创建正式 Release。Release 只上传可解压加载的 ZIP，不生成 CRX 或 SHA-256 附件。
 
 ## 开源许可与免责声明
 
