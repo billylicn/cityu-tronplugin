@@ -82,94 +82,72 @@ test("战绩报告保留单课程局部错误而不中止", async () => {
   assert.match(report.failedCourses[0].message, /作业接口暂时不可用/);
 });
 
-test("成绩读取使用后台 API，并按课程并发 2 处理", async () => {
+test("课程总成绩只请求官方 student-self-score，并按课程并发 2 处理", async () => {
   const api = new TronClassApi();
   let active = 0;
   let maximum = 0;
-  api.loadCourseGrades = async (course) => {
+  const paths = [];
+  api.requestJson = async (path) => {
+    paths.push(path);
     active += 1;
     maximum = Math.max(maximum, active);
     await new Promise((resolve) => setTimeout(resolve, 5));
     active -= 1;
-    return { course, grades: [{ courseId: course.id, sourceId: course.id }], errors: [] };
+    return { self_score: { total_score: "80" } };
   };
-  const progress = [];
-  const result = await api.loadGradesCourses([{ id: 1 }, { id: 2 }, { id: 3 }], {
-    onProgress: ({ completed }) => progress.push(completed)
-  });
+  const result = await api.loadGradesCourses([{ id: 1 }, { id: 2 }, { id: 3 }]);
   assert.equal(maximum, 2);
-  assert.equal(result.grades.length, 3);
-  assert.deepEqual(progress.sort((a, b) => a - b), [1, 2, 3]);
+  assert.equal(result.summaries.length, 3);
+  assert.deepEqual(paths.sort(), [
+    "/api/course/1/student-self-score",
+    "/api/course/2/student-self-score",
+    "/api/course/3/student-self-score"
+  ]);
+  assert.equal(paths.some((path) => /submission-status|submitted-exams|activities/.test(path)), false);
 });
 
-test("单课程成绩读取合并作业、考试和问卷后台接口", async () => {
-  const api = new TronClassApi();
+test("成绩分项只在明确调用时读取官方成绩接口并保留局部成功", async () => {
+  const api = new TronClassApi({ now: () => new Date("2026-09-11T00:00:00Z") });
   const paths = [];
   api.requestJson = async (path) => {
     paths.push(path);
-    if (path.includes("/activities")) return { activities: [
-      { id: 10, type: "homework", title: "作业" },
-      { id: 30, type: "questionnaire", title: "问卷" }
-    ] };
-    if (path.includes("homework/submission-status")) return { homework_activities: [{ id: 10, status_code: "submitted", score: 80 }] };
+    if (path.includes("homework-scores")) return {
+      homework_activities: [{ id: 10, title: "作业", score_percentage: "20" }],
+      scores: [{ activity_id: 10, final_score: "88", student_id: 999 }]
+    };
     if (path.endsWith("/exams")) return { exams: [{ id: 20, title: "考试" }] };
-    if (path.includes("submitted-exams")) return { exam_ids: [20] };
-    if (path.includes("exam-scores")) return { exam_scores: [{ activity_id: 20, score: 90 }] };
-    if (path === "/api/questionnaires/30") return { id: 30, title: "问卷", is_submitted: true, is_scored: true };
-    if (path === "/api/questionnaire/30/submissions") return { exam_score: 100, submissions: [{ score: "100" }] };
-    throw new Error(`unexpected ${path}`);
+    if (path.includes("exam-scores")) return { exam_scores: [{ activity_id: 20, score: "90" }] };
+    if (path.includes("questionnaires")) return { questionnaires: [{ id: 30, title: "问卷" }] };
+    if (path.includes("questionnaire-scores")) return { questionnaire_scores: [{ activity_id: 30, score: null }] };
+    if (path.includes("rollcall-score")) return { score: "0", score_percentage: "10" };
+    if (path.includes("online-video-completeness/setting")) return { score_percentage: "5" };
+    if (path.includes("online-video-completeness/score")) return { score: "95" };
+    const error = new Error("暂时不可用");
+    error.status = 500;
+    throw error;
   };
-  const result = await api.loadCourseGrades({ id: 1, name: "课程" });
-  assert.deepEqual(result.grades.map((item) => item.sourceType).sort(), ["exam", "homework", "questionnaire"]);
-  assert.ok(paths.includes("/api/courses/1/activities?sub_course_id=0"));
-  assert.ok(paths.includes("/api/course/1/homework/submission-status?no-intercept=true"));
-  assert.ok(paths.includes("/api/courses/1/submitted-exams?no-intercept=true"));
-  assert.ok(paths.includes("/api/questionnaire/30/submissions"));
+  const result = await api.loadCourseGradeDetails({ id: 1, name: "课程" });
+  assert.ok(result.items.some((item) => item.sourceType === "homework" && item.score === 88));
+  assert.ok(result.items.some((item) => item.sourceType === "exam" && item.score === 90));
+  assert.ok(result.items.some((item) => item.sourceType === "attendance" && item.score === 0));
+  assert.ok(result.items.some((item) => item.sourceType === "online_video" && item.score === 95 && item.weight === 5));
+  assert.ok(paths.some((path) => path.includes("online-video-completeness/setting")));
+  assert.ok(result.errors.length > 0);
+  assert.equal(paths.some((path) => /submission-status|submitted-exams|questionnaire\/.*\/submissions/.test(path)), false);
 });
 
-test("单门课程成绩读取异常不会中止其他课程", async () => {
+test("单门课程总成绩读取异常不会中止其他课程", async () => {
   const api = new TronClassApi();
-  api.loadCourseGrades = async (course) => {
+  api.loadCourseGradeSummary = async (course) => {
     if (course.id === 2) throw new Error("课程成绩接口暂时不可用");
-    return { course, grades: [{ courseId: course.id, sourceId: course.id }], errors: [] };
+    return { courseId: course.id, totalScore: 80, scoreStatus: "published" };
   };
-
   const result = await api.loadGradesCourses([
-    { id: 1, name: "课程一" },
-    { id: 2, name: "课程二" },
-    { id: 3, name: "课程三" }
+    { id: 1, name: "课程一" }, { id: 2, name: "课程二" }, { id: 3, name: "课程三" }
   ]);
-
-  assert.deepEqual(result.grades.map((item) => item.courseId), [1, 3]);
+  assert.deepEqual(result.summaries.map((item) => item.courseId), [1, 3]);
   assert.equal(result.errors.length, 1);
   assert.equal(result.errors[0].courseId, 2);
-  assert.match(result.errors[0].message, /暂时不可用/);
-});
-
-test("无作业课程的提交状态 404 不显示为成绩读取错误", async () => {
-  const api = new TronClassApi();
-  api.requestJson = async (path) => {
-    if (path.includes("/activities")) return { activities: [{ id: 30, type: "questionnaire", title: "未提交问卷" }] };
-    if (path.includes("homework/submission-status")) {
-      const error = new Error("请求失败（HTTP 404）");
-      error.status = 404;
-      throw error;
-    }
-    if (path.endsWith("/exams")) return { exams: [] };
-    if (path.includes("submitted-exams")) return { exam_ids: [] };
-    if (path.includes("exam-scores")) return { exam_scores: [] };
-    if (path === "/api/questionnaires/30") return { id: 30, is_submitted: false, is_scored: false };
-    if (path === "/api/questionnaire/30/submissions") {
-      const error = new Error("请求失败（HTTP 404）");
-      error.status = 404;
-      throw error;
-    }
-    throw new Error(`unexpected ${path}`);
-  };
-
-  const result = await api.loadCourseGrades({ id: 1, name: "无作业课程" });
-  assert.deepEqual(result.grades, []);
-  assert.deepEqual(result.errors, []);
 });
 
 test("确定性 4xx 响应不会重复重试", async () => {

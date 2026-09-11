@@ -2,9 +2,9 @@ import { AuthError, TronClassApi } from "./lib/api.js";
 import { announcementContent, announcementFingerprint } from "./lib/announcement.js";
 import { battleRecordKey, deriveBattleReport, groupReportRecords, reportRecordDescription } from "./lib/battle-report.js";
 import { buildBattlePersona } from "./lib/battle-persona.js";
-import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, GRADE_CACHE_KEY, createBattleReportCache, createDashboardCache, createGradeCache, readBattleReportCache, readDashboardCache, readGradeCache } from "./lib/cache.js";
+import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY, createBattleReportCache, createDashboardCache, createGradeCache, readBattleReportCache, readDashboardCache, readGradeCache } from "./lib/cache.js";
 import { compareVersions, displayVersion } from "./lib/version.js";
-import { GRADE_STATUS_LABELS, GRADE_TYPE_LABELS, groupCoursesByTerm } from "./lib/grades.js";
+import { GRADE_STATUS_LABELS, GRADE_TYPE_LABELS, gradeScoreText, groupCoursesByTerm } from "./lib/grades.js";
 import {
   STATUS_LABELS,
   TYPE_LABELS,
@@ -68,7 +68,10 @@ const state = {
   hiddenAttendanceKeys: new Set(),
   hiddenHomeworkKeys: new Set(),
   ignoredActivityKeys: new Set(),
-  grades: [],
+  gradeSummaries: [],
+  gradeDetailsByCourse: {},
+  gradeExpandedCourseIds: new Set(),
+  gradeDetailLoading: new Set(),
   gradeErrors: [],
   gradeCourses: [],
   gradeScope: "current",
@@ -78,14 +81,14 @@ const state = {
   gradeLoading: false,
   gradeInitialized: false,
   gradeCache: null,
-  gradeFilters: { course: "all", type: "all", status: "all" },
+  gradeFilters: { course: "all" },
   battleReportLoading: false,
   hasDashboardCache: false,
   filters: { taskCourse: "all", taskStatus: "attention", taskType: "all", materialCourse: "all" },
   ui: {
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     defaultCollapsed: { ...DEFAULT_COLLAPSED },
-    autoRefresh: true,
+    autoRefresh: false,
     suppressUsageNotice: false,
     ignoredAnnouncementFingerprint: "",
     settingsDraft: null
@@ -100,9 +103,9 @@ const dom = Object.fromEntries([
   "taskTypeFilter", "taskList", "hiddenTasksMenu", "hiddenTaskCount", "hiddenTaskList", "restoreAllHiddenTasks", "materialCourseFilter", "materialsList", "errorsSection",
   "errorsList", "toastRegion", "settingsPage", "settingsForm", "settingsResetButton", "settingsApplyButton",
   "sectionSettingsList", "autoRefreshToggle", "clearCacheButton", "overviewPage", "gradesPage", "battlePage",
-  "gradeRefreshButton", "gradeHistoryTermSelect", "gradeCourseFilter", "gradeTypeFilter", "gradeStatusFilter",
+  "gradeRefreshButton", "gradeHistoryTermSelect", "gradeCourseFilter",
   "gradeEmpty", "gradeEmptyMessage", "gradeLoading", "gradeLoadingTitle", "gradeLoadingDetail", "gradeError", "gradeErrorMessage",
-  "gradeContent", "gradeTotalCount", "gradePublishedCount", "gradeUnpublishedCount", "gradeNotScoredCount",
+  "gradeContent",
   "gradeTermTitle", "gradeRefreshMeta", "gradeList", "gradeErrorsSection", "gradeErrorsList",
   "battleResultActions", "battleRestoreButton", "battleRegenerateButton", "battleEmpty", "battleGenerateButton",
   "battleLoading", "battleProgressTitle", "battleProgressDetail", "battleProgressBar", "battleProgressPercent",
@@ -432,7 +435,8 @@ async function loadCaches() {
   const storage = globalThis.chrome?.storage?.local;
   if (!storage) return false;
   try {
-    const stored = await storage.get([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY]);
+    const stored = await storage.get([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY]);
+    if (stored?.[LEGACY_GRADE_CACHE_KEY] !== undefined) await storage.remove(LEGACY_GRADE_CACHE_KEY);
     const dashboardCache = readDashboardCache(stored?.[DASHBOARD_CACHE_KEY]);
     const battleCache = readBattleReportCache(stored?.[BATTLE_REPORT_CACHE_KEY]);
     const gradeCache = readGradeCache(stored?.[GRADE_CACHE_KEY]);
@@ -547,7 +551,7 @@ async function saveBattleReportCache() {
 
 async function clearInvalidCaches() {
   const storage = globalThis.chrome?.storage?.local;
-  try { await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY]); } catch { /* ignore */ }
+  try { await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY]); } catch { /* ignore */ }
 }
 
 function battleExclusions() {
@@ -674,7 +678,7 @@ async function applySettings() {
 async function clearStoredData() {
   const storage = globalThis.chrome?.storage?.local;
   try {
-    await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY]);
+    await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY]);
     state.dashboardCache = null;
     state.hasDashboardCache = false;
     // 只删除持久化成绩缓存；当前页面已经读取的成绩继续保留在内存中，
@@ -719,8 +723,6 @@ function bindEvents() {
     void loadSelectedGradeTerm();
   });
   dom.gradeCourseFilter.addEventListener("change", () => { state.gradeFilters.course = dom.gradeCourseFilter.value; renderGrades(); });
-  dom.gradeTypeFilter.addEventListener("change", () => { state.gradeFilters.type = dom.gradeTypeFilter.value; renderGrades(); });
-  dom.gradeStatusFilter.addEventListener("change", () => { state.gradeFilters.status = dom.gradeStatusFilter.value; renderGrades(); });
   dom.battleGenerateButton.addEventListener("click", generateBattleReport);
   dom.battleRestoreButton.addEventListener("click", restoreFullBattleReport);
   dom.battleRegenerateButton.addEventListener("click", generateBattleReport);
@@ -894,7 +896,8 @@ function applySelectedGradeCache() {
   const cached = state.gradeCache?.terms?.find((item) => item.key === term?.key);
   if (!term || !cached) return false;
   state.gradeCourses = term.courses;
-  state.grades = cached.grades || [];
+  state.gradeSummaries = cached.summaries || [];
+  state.gradeDetailsByCourse = Object.fromEntries((cached.details || []).map((detail) => [String(detail.courseId), detail]));
   state.gradeErrors = cached.errors || [];
   state.gradeLoadedTermKey = term.key;
   state.gradeRefreshedAt = cached.refreshedAt ? new Date(cached.refreshedAt) : null;
@@ -908,7 +911,8 @@ function applySelectedGradeCache() {
 
 function showGradeOfflineEmpty() {
   state.gradeCourses = [];
-  state.grades = [];
+  state.gradeSummaries = [];
+  state.gradeDetailsByCourse = {};
   state.gradeErrors = [];
   state.gradeLoadedTermKey = null;
   dom.gradeLoading.classList.add("is-hidden");
@@ -932,8 +936,8 @@ async function refreshGrades({ manual = false } = {}) {
   dom.gradeEmpty.classList.add("is-hidden");
   dom.gradeError.classList.add("is-hidden");
   dom.gradeLoading.classList.remove("is-hidden");
-  dom.gradeLoadingTitle.textContent = "正在读取课程与成绩…";
-  dom.gradeLoadingDetail.textContent = "准备连接 TronClass 后台接口。";
+  dom.gradeLoadingTitle.textContent = "正在读取当前课程得分…";
+  dom.gradeLoadingDetail.textContent = "只请求 TronClass 课程成绩后台接口，不计算总评或 GPA。";
 
   try {
     if (!state.courses.length) {
@@ -945,7 +949,7 @@ async function refreshGrades({ manual = false } = {}) {
     const term = selectedGradeTerm();
     if (!term) {
       state.gradeCourses = [];
-      state.grades = [];
+      state.gradeSummaries = [];
       state.gradeErrors = [];
       state.gradeLoadedTermKey = null;
       dom.gradeLoading.classList.add("is-hidden");
@@ -953,19 +957,33 @@ async function refreshGrades({ manual = false } = {}) {
       renderGrades();
       return;
     }
+    if (state.gradeLoadedTermKey !== term.key) {
+      state.gradeDetailsByCourse = {};
+      state.gradeExpandedCourseIds.clear();
+    }
     state.gradeCourses = term.courses;
+    const cachedTerm = state.gradeCache?.terms?.find((item) => item.key === term.key);
+    const previousSummaries = state.gradeLoadedTermKey === term.key ? state.gradeSummaries : (cachedTerm?.summaries || []);
+    const previousSummaryByCourse = new Map(previousSummaries.map((summary) => [Number(summary.courseId), summary]));
     const result = await api.loadGradesCourses(term.courses, {
       onProgress: ({ completed, total, course, errors }) => {
         dom.gradeLoadingTitle.textContent = `已读取 ${completed}/${total} 门课程`;
-        dom.gradeLoadingDetail.textContent = `${course.name}${errors.length ? " · 部分成绩接口不可用" : " · 读取完成"}`;
+        dom.gradeLoadingDetail.textContent = `${course.name}${errors.length ? " · 当前得分读取失败" : " · 当前得分读取完成"}`;
       }
     });
-    state.grades = result.grades;
+    const freshSummaryByCourse = new Map(result.summaries.map((summary) => [Number(summary.courseId), summary]));
+    state.gradeSummaries = term.courses
+      .map((course) => freshSummaryByCourse.get(Number(course.id)) || previousSummaryByCourse.get(Number(course.id)))
+      .filter(Boolean);
     state.gradeErrors = result.errors;
     state.gradeLoadedTermKey = term.key;
-    state.gradeRefreshedAt = new Date();
+    if (result.summaries.length || term.courses.length === 0) {
+      state.gradeRefreshedAt = new Date();
+      await saveGradeTermCache(term);
+    } else {
+      state.gradeRefreshedAt = cachedTerm?.refreshedAt ? new Date(cachedTerm.refreshedAt) : null;
+    }
     clearAuthenticationPrompt();
-    await saveGradeTermCache(term);
     dom.gradeLoading.classList.add("is-hidden");
     dom.gradeContent.classList.remove("is-hidden");
     renderGrades();
@@ -992,7 +1010,8 @@ async function saveGradeTermCache(term) {
     key: term.key,
     name: term.name,
     courseIds: term.courses.map((course) => course.id),
-    grades: state.grades,
+    summaries: state.gradeSummaries,
+    details: Object.values(state.gradeDetailsByCourse),
     errors: state.gradeErrors,
     refreshedAt: state.gradeRefreshedAt
   };
@@ -1008,51 +1027,122 @@ function renderGrades() {
   const term = selectedGradeTerm();
   updateGradeScopeControls();
   state.gradeCourses = term?.courses || state.gradeCourses || [];
-  const allGrades = state.grades || [];
+  const summaries = state.gradeSummaries || [];
   const courseOptions = state.gradeCourses.map((course) => ({ value: String(course.id), label: course.name }));
   if (!state.gradeCourses.some((course) => String(course.id) === state.gradeFilters.course)) state.gradeFilters.course = "all";
   replaceOptions(dom.gradeCourseFilter, [{ value: "all", label: "全部课程" }, ...courseOptions], state.gradeFilters.course);
-  dom.gradeTypeFilter.value = state.gradeFilters.type;
-  dom.gradeStatusFilter.value = state.gradeFilters.status;
 
-  dom.gradeTotalCount.textContent = String(allGrades.length);
-  dom.gradePublishedCount.textContent = String(allGrades.filter((item) => item.scoreStatus === "published").length);
-  dom.gradeUnpublishedCount.textContent = String(allGrades.filter((item) => item.scoreStatus === "unpublished").length);
-  dom.gradeNotScoredCount.textContent = String(allGrades.filter((item) => item.scoreStatus === "not_scored").length);
   dom.gradeTermTitle.textContent = term?.name || (state.gradeScope === "current" ? "当前学期" : "历史学期");
   dom.gradeRefreshMeta.textContent = state.gradeRefreshedAt ? `读取于 ${formatFullDateTime(state.gradeRefreshedAt)}` : "尚未读取";
 
-  const filtered = allGrades.filter((item) =>
-    (state.gradeFilters.course === "all" || String(item.courseId) === state.gradeFilters.course) &&
-    (state.gradeFilters.type === "all" || item.sourceType === state.gradeFilters.type) &&
-    (state.gradeFilters.status === "all" || item.scoreStatus === state.gradeFilters.status)
-  );
-  const groups = groupBy(filtered, (item) => item.courseId);
-  const cards = state.gradeCourses.filter((course) => groups.has(course.id)).map((course) => {
-    const items = groups.get(course.id);
-    const card = element("section", "grade-course-card");
-    const header = element("div", "grade-course-header");
-    header.append(element("h4", "", course.name), element("span", "", `${items.length} 个已提交项目`));
-    card.append(header, ...items.map(renderGradeRow));
-    return card;
-  });
-  dom.gradeList.replaceChildren(...(cards.length ? cards : [emptyState("没有符合条件的成绩", allGrades.length ? "请调整课程、类型或公布状态筛选。" : "当前学期尚未读取到已提交的作业、问卷或线上考试。") ]));
+  const summaryByCourse = new Map(summaries.map((item) => [Number(item.courseId), item]));
+  const summaryErrorByCourse = new Map(state.gradeErrors
+    .filter((error) => error.section === "课程总成绩")
+    .map((error) => [Number(error.courseId), error]));
+  const visibleCourses = state.gradeCourses.filter((course) => state.gradeFilters.course === "all" || String(course.id) === state.gradeFilters.course);
+  const cards = visibleCourses.map((course) => renderGradeCourseCard(course, summaryByCourse.get(Number(course.id)), summaryErrorByCourse.get(Number(course.id))));
+  dom.gradeList.replaceChildren(...(cards.length ? cards : [emptyState("当前范围没有课程", "请选择其他学期或刷新课程成绩。") ]));
 
-  dom.gradeErrorsSection.classList.toggle("is-hidden", !state.gradeErrors.length);
-  dom.gradeErrorsList.replaceChildren(...state.gradeErrors.map((error) => element("li", "", `${error.courseName} · ${error.section}：${error.message}`)));
+  const detailErrors = Object.values(state.gradeDetailsByCourse).flatMap((detail) => detail.errors || []);
+  const allErrors = [...state.gradeErrors, ...detailErrors];
+  dom.gradeErrorsSection.classList.toggle("is-hidden", !allErrors.length);
+  dom.gradeErrorsList.replaceChildren(...allErrors.map((error) => element("li", "", `${error.courseName} · ${GRADE_TYPE_LABELS[error.section] || error.section}：${error.message}`)));
+}
+
+function renderGradeCourseCard(course, summary, summaryError) {
+  const courseId = String(course.id);
+  const expanded = state.gradeExpandedCourseIds.has(courseId);
+  const detail = state.gradeDetailsByCourse[courseId];
+  const loading = state.gradeDetailLoading.has(courseId);
+  const card = element("section", `grade-course-card${expanded ? " is-expanded" : ""}`);
+  const header = element("div", "grade-course-header grade-course-summary");
+  const main = element("div", "grade-course-main");
+  main.append(element("h4", "", course.name));
+  const metadata = [];
+  if (summary?.scoreUpdatedAt) metadata.push(`更新于 ${formatDateTime(summary.scoreUpdatedAt)}`);
+  if (summary?.exceptionalCase && summary.exceptionalCase !== "none") metadata.push(`特殊状态：${summary.exceptionalCase}`);
+  if (summaryError) metadata.push(summary ? "本次读取失败，显示上次缓存" : "当前得分读取失败");
+  main.append(element("span", summaryError ? "grade-course-warning" : "", metadata.join(" · ") || "TronClass 成绩页后台数据"));
+  const scoreBox = element("div", "grade-total-score");
+  scoreBox.append(element("span", "", "当前获取得分"));
+  scoreBox.append(element("strong", summary?.scoreStatus === "published" ? "" : "is-unpublished", summary ? gradeScoreText({ score: summary.totalScore }) : "读取失败"));
+  if (state.gradeScope === "current" && summary?.scoreStatus === "published") scoreBox.append(element("small", "grade-score-disclaimer", "非最终成绩"));
+  if (summary && Number.isFinite(summary.rawScore) && summary.rawScore !== summary.totalScore) scoreBox.append(element("small", "", `原始成绩 ${gradeScoreText({ score: summary.rawScore })}`));
+  if (summary && Number.isFinite(summary.gpa)) scoreBox.append(element("small", "grade-gpa", `GPA ${gradeScoreText({ score: summary.gpa })}`));
+  const actions = element("div", "grade-course-actions");
+  actions.append(
+    button(expanded ? "收起分项" : "展开官方分项", "button button-secondary button-small", () => void toggleGradeCourse(course)),
+    button("官方成绩页", "button button-link button-small", () => openUrl(summary?.directUrl || `/course/${course.id}/score`))
+  );
+  header.append(main, scoreBox, actions);
+  card.append(header);
+  if (expanded) card.append(renderGradeDetails(course, detail, loading));
+  return card;
+}
+
+async function toggleGradeCourse(course) {
+  const key = String(course.id);
+  if (state.gradeExpandedCourseIds.has(key)) {
+    state.gradeExpandedCourseIds.delete(key);
+    renderGrades();
+    return;
+  }
+  state.gradeExpandedCourseIds.add(key);
+  renderGrades();
+  if (!state.gradeDetailsByCourse[key] && state.ui.autoRefresh) await loadGradeDetails(course);
+}
+
+function renderGradeDetails(course, detail, loading) {
+  const container = element("div", "grade-detail-panel");
+  if (loading) {
+    container.append(emptyState("正在读取官方成绩分项…", "各分项分数只来自 TronClass 成绩接口。"));
+    return container;
+  }
+  if (!detail) {
+    const stateCard = emptyState("尚未读取此课程分项", state.ui.autoRefresh ? "展开后将自动读取。" : "自动刷新已关闭，展开课程不会联网。" );
+    if (!state.ui.autoRefresh) stateCard.append(button("读取此课程明细", "button button-primary button-small", () => void loadGradeDetails(course)));
+    container.append(stateCard);
+    return container;
+  }
+  const groups = groupBy(detail.items || [], (item) => item.sourceType);
+  if (!groups.size) container.append(emptyState("暂无官方成绩分项", "课程当前得分以课程卡片显示的 TronClass 后台返回值为准，且不代表最终成绩。"));
+  for (const [sourceType, items] of groups) {
+    const section = element("section", "grade-detail-section");
+    section.append(element("h5", "", GRADE_TYPE_LABELS[sourceType] || sourceType), ...items.map(renderGradeRow));
+    container.append(section);
+  }
+  return container;
+}
+
+async function loadGradeDetails(course) {
+  const key = String(course.id);
+  if (state.gradeDetailLoading.has(key)) return;
+  state.gradeDetailLoading.add(key);
+  renderGrades();
+  try {
+    const detail = await api.loadCourseGradeDetails(course);
+    state.gradeDetailsByCourse[key] = detail;
+    const term = selectedGradeTerm();
+    if (term) await saveGradeTermCache(term);
+    clearAuthenticationPrompt();
+  } catch (error) {
+    if (error instanceof AuthError) showAuthenticationBanner("成绩接口无法确认当前登录状态。请先登录 TronClass，再读取课程成绩明细。");
+    toast(`课程成绩明细读取失败：${error?.message || String(error)}`, true);
+  } finally {
+    state.gradeDetailLoading.delete(key);
+    renderGrades();
+  }
 }
 
 function renderGradeRow(item) {
   const row = element("article", "grade-row");
   const main = element("div", "grade-main");
   main.append(element("strong", "grade-title", item.title));
-  if (item.submittedAt) main.append(element("span", "grade-submitted", `提交于 ${formatDateTime(item.submittedAt)}`));
-  const type = element("span", "badge badge-type grade-badge", GRADE_TYPE_LABELS[item.sourceType] || item.sourceType);
-  const scoreClass = item.scoreStatus === "published" ? "grade-score" : `grade-score is-${item.scoreStatus === "not_scored" ? "not-scored" : "unpublished"}`;
-  const score = element("strong", scoreClass, item.scoreText);
+  const scoreClass = item.scoreStatus === "published" ? "grade-score" : "grade-score is-unpublished";
+  const score = element("strong", scoreClass, item.scoreText || gradeScoreText(item));
   score.title = GRADE_STATUS_LABELS[item.scoreStatus] || "成绩状态";
   const weight = element("span", "grade-weight", Number.isFinite(item.weight) ? `权重 ${item.weight}%` : "未标注权重");
-  row.append(main, type, score, weight, button("查看详情", "button button-link button-small", () => openUrl(item.directUrl)));
+  row.append(main, score, weight, button("官方成绩页", "button button-link button-small", () => openUrl(item.directUrl)));
   return row;
 }
 

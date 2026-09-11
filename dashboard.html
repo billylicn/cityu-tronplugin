@@ -56,7 +56,7 @@
             <path d="m8.5 14 2.1 2.1 4.9-5"></path>
           </svg>
         </span>
-        <span><strong>成绩展示</strong><small>作业、问卷与考试</small></span>
+        <span><strong>成绩展示</strong><small>当前得分与分项</small></span>
       </button>
       <button class="side-nav-button" data-page="battle" type="button">
         <span class="side-nav-icon side-nav-icon-battle" aria-hidden="true">
@@ -241,9 +241,9 @@
       <div id="gradesPage" class="page-view is-hidden">
         <section class="grades-page-heading">
           <div>
-            <span class="eyebrow">已提交项目</span>
+            <span class="eyebrow">TronClass 成绩数据</span>
             <h2>成绩展示</h2>
-            <p>通过 TronClass 后台接口读取本人已提交的作业、问卷和线上考试成绩；空分数不会被当作 0 分。</p>
+            <p>当前获取得分直接读取 TronClass 成绩页后台接口，不按作业或权重自行计算，不代表最终成绩或正式成绩单；GPA 仅在后台明确提供时显示。</p>
           </div>
           <button id="gradeRefreshButton" class="button button-primary" type="button">刷新成绩</button>
         </section>
@@ -256,29 +256,17 @@
           <div class="grade-filter-row">
             <select id="gradeHistoryTermSelect" class="select is-hidden" aria-label="选择历史学期"></select>
             <select id="gradeCourseFilter" class="select" aria-label="按课程筛选成绩"></select>
-            <select id="gradeTypeFilter" class="select" aria-label="按类型筛选成绩">
-              <option value="all">全部类型</option>
-              <option value="homework">作业</option>
-              <option value="questionnaire">问卷</option>
-              <option value="exam">线上考试</option>
-            </select>
-            <select id="gradeStatusFilter" class="select" aria-label="按公布状态筛选成绩">
-              <option value="all">全部状态</option>
-              <option value="published">成绩已公布</option>
-              <option value="unpublished">成绩未公布</option>
-              <option value="not_scored">不计分</option>
-            </select>
           </div>
         </section>
 
         <section id="gradeEmpty" class="grade-state-card">
           <div class="grade-state-icon" aria-hidden="true">分</div>
-          <div><strong>准备读取当前学期成绩</strong><p id="gradeEmptyMessage">进入本页后会读取当前平台学期的全部课程。关闭自动刷新时，只使用上次缓存。</p></div>
+          <div><strong>准备读取当前学期成绩</strong><p id="gradeEmptyMessage">进入本页后会读取当前平台学期各课程目前可获取的得分。关闭自动刷新时，只使用上次缓存。</p></div>
         </section>
 
         <section id="gradeLoading" class="grade-state-card is-hidden" aria-live="polite">
           <div class="spinner" aria-hidden="true"></div>
-          <div><strong id="gradeLoadingTitle">正在读取成绩…</strong><p id="gradeLoadingDetail">只读取已提交项目的成绩状态。</p></div>
+          <div><strong id="gradeLoadingTitle">正在读取成绩…</strong><p id="gradeLoadingDetail">只读取课程目前可获取的得分，分项在展开课程后按需读取。</p></div>
         </section>
 
         <section id="gradeError" class="grade-state-card grade-state-error is-hidden" role="alert">
@@ -287,14 +275,8 @@
         </section>
 
         <div id="gradeContent" class="is-hidden">
-          <section class="grade-summary">
-            <div><span>已提交项目</span><strong id="gradeTotalCount">0</strong></div>
-            <div><span>已公布成绩</span><strong id="gradePublishedCount">0</strong></div>
-            <div><span>成绩未公布</span><strong id="gradeUnpublishedCount">0</strong></div>
-            <div><span>不计分问卷</span><strong id="gradeNotScoredCount">0</strong></div>
-          </section>
           <div class="grade-list-heading">
-            <div><span class="eyebrow">成绩明细</span><h3 id="gradeTermTitle">当前学期</h3></div>
+            <div><span class="eyebrow">课程成绩</span><h3 id="gradeTermTitle">当前学期</h3></div>
             <p id="gradeRefreshMeta" class="section-note">尚未读取</p>
           </div>
           <div id="gradeList" class="grade-course-list"></div>

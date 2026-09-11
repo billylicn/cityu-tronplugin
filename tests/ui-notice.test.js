@@ -107,6 +107,13 @@ test("左侧功能栏使用本地 SVG 图标并保持统一渲染", () => {
   assert.match(css, /\.side-nav-icon svg \{[^}]*stroke: currentColor;/);
 });
 
+test("自动刷新默认关闭且仍可由用户手动开启", () => {
+  assert.match(script, /autoRefresh: false/);
+  assert.doesNotMatch(html, /id="autoRefreshToggle"[^>]*checked/);
+  assert.match(script, /if \(state\.ui\.autoRefresh\) \{[\s\S]*await refresh/);
+  assert.match(script, /if \(typeof preferences\.autoRefresh === "boolean"\) state\.ui\.autoRefresh = preferences\.autoRefresh/);
+});
+
 test("页面设置已迁移到左侧独立功能页", () => {
   assert.match(html, /class="side-nav-button" data-page="settings"/);
   assert.match(html, /id="settingsPage" class="page-view is-hidden"/);
@@ -139,9 +146,17 @@ test("左侧成绩展示页通过后台接口读取当前与历史学期成绩",
   assert.match(html, /id="gradesPage" class="page-view is-hidden"/);
   assert.match(html, /id="gradeHistoryTermSelect"/);
   assert.match(html, /id="gradeCourseFilter"/);
-  assert.match(html, /id="gradeTypeFilter"/);
-  assert.match(html, /id="gradeStatusFilter"/);
+  assert.doesNotMatch(html, /id="gradeTypeFilter"|id="gradeStatusFilter"/);
+  assert.match(html, /TronClass 成绩数据/);
+  assert.match(html, /当前获取得分直接读取 TronClass 成绩页后台接口/);
+  assert.match(html, /不代表最终成绩或正式成绩单/);
+  assert.doesNotMatch(html, /gradeTotalCount|gradePublishedCount|gradeUnpublishedCount|gradeGpaCount|总成绩已公布|总成绩未公布|后台提供 GPA/);
+  assert.doesNotMatch(css, /\.grade-summary/);
+  assert.doesNotMatch(script, /gradeTotalCount|gradePublishedCount|gradeUnpublishedCount|gradeGpaCount/);
+  assert.match(script, /"当前获取得分"/);
+  assert.match(script, /state\.gradeScope === "current"[^\n]+"非最终成绩"/);
   assert.match(script, /api\.loadGradesCourses\(term\.courses/);
+  assert.match(script, /api\.loadCourseGradeDetails\(course\)/);
   assert.match(script, /page === "grades"/);
   assert.match(script, /自动刷新已关闭，点击“刷新成绩”/);
   assert.doesNotMatch(script, /querySelector[^\n]*(成绩|score)/i);

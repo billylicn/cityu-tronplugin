@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CityU TronClass Plugin",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "在本地聚合澳门城市大学 TronClass 的出勤、待提交任务、成绩、课程文件与匿名城大战绩报告。",
   "homepage_url": "https://github.com/billylicn/cityu-tronplugin",
   "permissions": [
