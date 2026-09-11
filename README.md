@@ -87,12 +87,12 @@
 
 ## 安装与使用
 
-### 从 Chrome 网上应用商店安装（推荐）
+### 💪 从 Chrome 网上应用商店安装（推荐）
 
 1. 打开 [CityU TronClass Plugin 的 Chrome 网上应用商店页面](https://chromewebstore.google.com/detail/llapladneeknmifggglonmcbaolgphdp?utm_source=item-share-cb)。
 2. 点击 **添加至 Chrome**。
 
-### 从 GitHub Release 手动安装
+### 💻 从 GitHub Release 手动安装
 
 1. 打开 [Releases 最新版本页面](https://github.com/billylicn/cityu-tronplugin/releases/latest)。
 2. 在 **Assets** 中下载 `cityu-tronclass-plugin-vX.Y.Z.zip`。
@@ -103,8 +103,6 @@
 7. 在同一浏览器中登录澳门城市大学 TronClass。
 8. 点击工具栏中的扩展图标，打开 Dashboard。
 
-> [!IMPORTANT]
-> 使用 GitHub Release 手动更新时，请先下载并解压新版本，再在 `chrome://extensions/` 中移除旧版 CityU TronClass Plugin，再加载新版本目录。删除旧扩展会清除插件的本地缓存、页面布局和忽略设置，但不会修改 TronClass 原站中的课程、作业、考勤或文件数据。
 
 ## 隐私设计
 
