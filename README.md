@@ -28,8 +28,53 @@
 ## 界面预览
 
 <p align="center">
-  <img src="images/dashboard-overview.png" width="100%" alt="CityU TronClass Plugin 学习总览界面">
+  <strong>一个页面，集中掌握真正需要关注的学习信息</strong><br>
+  <sub>以下均为匿名化示例缩略图，点击图片可查看 1280 × 800 原图。</sub>
 </p>
+
+<table align="center" width="92%">
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <a href="images/store-screenshot-01-overview-1280x800.png">
+        <img src="images/store-screenshot-01-overview-1280x800.png" width="94%" alt="CityU TronClass Plugin 学习总览">
+      </a>
+      <br><strong>学习总览</strong><br>
+      <sub>集中查看待提交任务、出勤异常与课程文件</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <a href="images/store-screenshot-02-grades-1280x800.png">
+        <img src="images/store-screenshot-02-grades-1280x800.png" width="94%" alt="CityU TronClass Plugin 成绩展示">
+      </a>
+      <br><strong>成绩展示</strong><br>
+      <sub>整理已提交作业、问卷与线上考试成绩</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <a href="images/store-screenshot-03-attendance-1280x800.png">
+        <img src="images/store-screenshot-03-attendance-1280x800.png" width="94%" alt="CityU TronClass Plugin 出勤情况">
+      </a>
+      <br><strong>出勤情况</strong><br>
+      <sub>按课程查看出席、迟到、缺席与请假记录</sub>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <a href="images/store-screenshot-04-files-1280x800.png">
+        <img src="images/store-screenshot-04-files-1280x800.png" width="94%" alt="CityU TronClass Plugin 课程文件">
+      </a>
+      <br><strong>课程文件</strong><br>
+      <sub>按课程整理附件并提供平台授权下载入口</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <a href="images/store-screenshot-05-battle-1280x800.png">
+        <img src="images/store-screenshot-05-battle-1280x800.png" width="46%" alt="CityU TronClass Plugin 城大战绩">
+      </a>
+      <br><strong>城大战绩</strong><br>
+      <sub>汇总全部课程的作业与考勤，生成匿名等级报告</sub>
+    </td>
+  </tr>
+</table>
 
 ## 主要功能
 
