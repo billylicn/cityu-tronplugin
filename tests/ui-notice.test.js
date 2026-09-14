@@ -114,6 +114,33 @@ test("自动刷新默认关闭且仍可由用户手动开启", () => {
   assert.match(script, /if \(typeof preferences\.autoRefresh === "boolean"\) state\.ui\.autoRefresh = preferences\.autoRefresh/);
 });
 
+test("自动刷新关闭超过 24 小时会提示手动刷新", () => {
+  assert.match(html, /id="manualRefreshReminderDialog"/);
+  assert.match(html, /已经超过 24 小时未手动刷新/);
+  assert.match(html, /id="manualRefreshReminderRefreshButton"[^>]*>立刻刷新数据<\/button>/);
+  assert.match(html, /id="manualRefreshReminderDismissButton"[^>]*>关闭<\/button>/);
+  assert.match(html, /id="manualRefreshReminderCloseButton"[^>]*aria-label="关闭刷新提醒"/);
+  assert.match(script, /manualRefreshReminderSince/);
+  assert.match(script, /await ensureManualRefreshReminderBaseline\(\)/);
+  assert.match(script, /await showManualRefreshReminder\(\)/);
+  assert.match(script, /refresh\(\{ firstLoad: false, manual: true \}\)/);
+  assert.match(script, /if \(manual && succeeded\) await markManualDataRead\(\)/);
+  assert.match(script, /battleReportHasSuccessfulRead\(state\.rawBattleReport\)/);
+  assert.match(script, /本次未能成功读取任何课程数据/);
+});
+
+test("用户指定的界面说明文案已删除", () => {
+  assert.doesNotMatch(html, /按照 TronClass 课程列表中的最新学期分组展示，不使用本地日期推测/);
+  assert.doesNotMatch(script, /按照 TronClass 课程列表中的最新学期分组展示，不使用本地日期推测/);
+  assert.doesNotMatch(html, /当前获取得分直接读取 TronClass 成绩页后台接口/);
+  assert.doesNotMatch(html, /异常记录优先；统计口径以教师在 TronClass 的设置为准/);
+  assert.doesNotMatch(script, /当前课程没有附件，或文件接口暂时不可用/);
+  assert.doesNotMatch(script, /课程可能尚未点名，或该课程未开放出勤数据/);
+  assert.doesNotMatch(script, /当前筛选下没有需要关注的未完成项目/);
+  assert.doesNotMatch(html, /非官方社区项目 · MIT License/);
+  assert.doesNotMatch(script, /事假计作缺席|病假计作缺席/);
+});
+
 test("页面设置已迁移到左侧独立功能页", () => {
   assert.match(html, /class="side-nav-button" data-page="settings"/);
   assert.match(html, /id="settingsPage" class="page-view is-hidden"/);
@@ -148,8 +175,7 @@ test("左侧成绩展示页通过后台接口读取当前与历史学期成绩",
   assert.match(html, /id="gradeCourseFilter"/);
   assert.doesNotMatch(html, /id="gradeTypeFilter"|id="gradeStatusFilter"/);
   assert.match(html, /TronClass 成绩数据/);
-  assert.match(html, /当前获取得分直接读取 TronClass 成绩页后台接口/);
-  assert.match(html, /不代表最终成绩或正式成绩单/);
+  assert.doesNotMatch(html, /当前获取得分直接读取 TronClass 成绩页后台接口/);
   assert.doesNotMatch(html, /gradeTotalCount|gradePublishedCount|gradeUnpublishedCount|gradeGpaCount|总成绩已公布|总成绩未公布|后台提供 GPA/);
   assert.doesNotMatch(css, /\.grade-summary/);
   assert.doesNotMatch(script, /gradeTotalCount|gradePublishedCount|gradeUnpublishedCount|gradeGpaCount/);

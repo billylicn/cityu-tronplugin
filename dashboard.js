@@ -1,10 +1,11 @@
 import { AuthError, TronClassApi } from "./lib/api.js";
 import { announcementContent, announcementFingerprint } from "./lib/announcement.js";
-import { battleRecordKey, deriveBattleReport, groupReportRecords, reportRecordDescription } from "./lib/battle-report.js";
+import { battleRecordKey, battleReportHasSuccessfulRead, deriveBattleReport, groupReportRecords, reportRecordDescription } from "./lib/battle-report.js";
 import { buildBattlePersona } from "./lib/battle-persona.js";
 import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY, createBattleReportCache, createDashboardCache, createGradeCache, readBattleReportCache, readDashboardCache, readGradeCache } from "./lib/cache.js";
 import { compareVersions, displayVersion } from "./lib/version.js";
 import { GRADE_STATUS_LABELS, GRADE_TYPE_LABELS, gradeScoreText, groupCoursesByTerm } from "./lib/grades.js";
+import { manualRefreshReminderDue, validReminderSince } from "./lib/refresh-reminder.js";
 import {
   STATUS_LABELS,
   TYPE_LABELS,
@@ -89,6 +90,7 @@ const state = {
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     defaultCollapsed: { ...DEFAULT_COLLAPSED },
     autoRefresh: false,
+    manualRefreshReminderSince: "",
     suppressUsageNotice: false,
     ignoredAnnouncementFingerprint: "",
     settingsDraft: null
@@ -119,7 +121,9 @@ const dom = Object.fromEntries([
   "startupAnnouncementTitle", "startupAnnouncementContent", "startupAnnouncementParagraphs", "startupAnnouncementItems",
   "startupAnnouncementProjectButton", "startupAnnouncementConfirmButton", "startupAnnouncementDontShow", "startupAnnouncementCloseButton",
   "settingsShowUsageNotice", "settingsResetAnnouncementButton", "currentVersion", "noticeCurrentVersion", "versionCheckStatus",
-  "updateNotice", "latestVersion", "updateCurrentVersion"
+  "updateNotice", "latestVersion", "updateCurrentVersion",
+  "manualRefreshReminderDialog", "manualRefreshReminderTitle", "manualRefreshReminderMessage",
+  "manualRefreshReminderCloseButton", "manualRefreshReminderDismissButton", "manualRefreshReminderRefreshButton"
 ].map((id) => [id, document.getElementById(id)]));
 
 let usageNoticePromise = null;
@@ -127,16 +131,19 @@ let usageNoticeConfirmed = false;
 let startupPromptsPromise = null;
 let announcementPromise = null;
 let activeAnnouncementFingerprint = "";
+let manualRefreshReminderPromise = null;
 
 bindEvents();
 void start();
 
 async function start() {
   await loadUiPreferences();
+  await ensureManualRefreshReminderBaseline();
   renderCurrentVersion();
   await showStartupPrompts();
   void checkForUpdates();
   await initialize();
+  await showManualRefreshReminder();
 }
 
 function showUsageNotice() {
@@ -378,6 +385,67 @@ async function initialize() {
   }
 }
 
+async function ensureManualRefreshReminderBaseline() {
+  if (state.ui.autoRefresh || state.ui.manualRefreshReminderSince) return;
+  state.ui.manualRefreshReminderSince = new Date().toISOString();
+  try {
+    await saveUiPreferences();
+  } catch (error) {
+    console.warn("无法保存手动刷新提醒基准时间", error);
+  }
+}
+
+async function markManualDataRead() {
+  state.ui.manualRefreshReminderSince = new Date().toISOString();
+  try {
+    await saveUiPreferences();
+  } catch (error) {
+    console.warn("无法保存最近手动读取时间", error);
+  }
+}
+
+function showManualRefreshReminder() {
+  const dialog = dom.manualRefreshReminderDialog;
+  if (!dialog || typeof dialog.showModal !== "function") return Promise.resolve();
+  if (!manualRefreshReminderDue({
+    autoRefresh: state.ui.autoRefresh,
+    reminderSince: state.ui.manualRefreshReminderSince
+  })) return Promise.resolve();
+  if (manualRefreshReminderPromise) return manualRefreshReminderPromise;
+
+  dom.manualRefreshReminderMessage.textContent = "自动刷新当前已关闭，页面中的缓存数据可能已经过期。建议刷新后再核对 TronClass 原页面。";
+  dom.manualRefreshReminderRefreshButton.disabled = false;
+  dom.manualRefreshReminderRefreshButton.textContent = "立刻刷新数据";
+  manualRefreshReminderPromise = new Promise((resolve) => {
+    const handleClose = () => {
+      dialog.removeEventListener("close", handleClose);
+      manualRefreshReminderPromise = null;
+      resolve();
+    };
+    dialog.addEventListener("close", handleClose);
+    if (!dialog.open) dialog.showModal();
+  });
+  return manualRefreshReminderPromise;
+}
+
+async function refreshFromManualReminder() {
+  if (state.refreshing) return;
+  dom.manualRefreshReminderRefreshButton.disabled = true;
+  dom.manualRefreshReminderRefreshButton.textContent = "刷新中…";
+  dom.manualRefreshReminderMessage.textContent = "正在读取学习总览，请稍候…";
+  switchPage("overview");
+  const succeeded = await refresh({ firstLoad: false, manual: true });
+  if (succeeded) {
+    dom.manualRefreshReminderDialog.close();
+    return;
+  }
+  dom.manualRefreshReminderMessage.textContent = state.authenticationRequired
+    ? "刷新失败，请先登录 TronClass。关闭提醒后可使用页面中的登录入口。"
+    : "本次刷新失败，现有缓存不会被覆盖。请稍后重试，并以 TronClass 原页面为准。";
+  dom.manualRefreshReminderRefreshButton.disabled = false;
+  dom.manualRefreshReminderRefreshButton.textContent = "重新刷新";
+}
+
 async function loadUiPreferences() {
   const storage = globalThis.chrome?.storage?.local;
   if (!storage) return;
@@ -392,6 +460,7 @@ async function loadUiPreferences() {
     if (order.length === DEFAULT_SECTION_ORDER.length) state.ui.sectionOrder = order;
 
     if (typeof preferences.autoRefresh === "boolean") state.ui.autoRefresh = preferences.autoRefresh;
+    state.ui.manualRefreshReminderSince = validReminderSince(preferences.manualRefreshReminderSince);
     if (typeof preferences.suppressUsageNotice === "boolean") state.ui.suppressUsageNotice = preferences.suppressUsageNotice;
     if (typeof preferences.ignoredAnnouncementFingerprint === "string" && /^[a-f0-9]{64}$/i.test(preferences.ignoredAnnouncementFingerprint)) {
       state.ui.ignoredAnnouncementFingerprint = preferences.ignoredAnnouncementFingerprint.toLowerCase();
@@ -423,6 +492,7 @@ async function saveUiPreferences() {
       sectionOrder: [...state.ui.sectionOrder],
       defaultCollapsed: { ...state.ui.defaultCollapsed },
       autoRefresh: state.ui.autoRefresh,
+      manualRefreshReminderSince: state.ui.manualRefreshReminderSince,
       suppressUsageNotice: state.ui.suppressUsageNotice,
       ignoredAnnouncementFingerprint: state.ui.ignoredAnnouncementFingerprint,
       ignoredActivityKeys: [...state.ignoredActivityKeys]
@@ -727,11 +797,11 @@ function bindEvents() {
   dom.battleRestoreButton.addEventListener("click", restoreFullBattleReport);
   dom.battleRegenerateButton.addEventListener("click", generateBattleReport);
   dom.battleRetryButton.addEventListener("click", generateBattleReport);
-  dom.refreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
+  dom.refreshButton.addEventListener("click", () => refresh({ firstLoad: false, manual: true }));
   dom.loginButton.addEventListener("click", () => openUrl("https://tronclass.cityu.edu.mo/"));
-  dom.loginRefreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
+  dom.loginRefreshButton.addEventListener("click", () => refresh({ firstLoad: false, manual: true }));
   dom.authLoginButton.addEventListener("click", () => openUrl("https://tronclass.cityu.edu.mo/"));
-  dom.authRefreshButton.addEventListener("click", () => refresh({ firstLoad: false }));
+  dom.authRefreshButton.addEventListener("click", () => refresh({ firstLoad: false, manual: true }));
 
   document.querySelectorAll(".scope-button").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -782,9 +852,16 @@ function bindEvents() {
   });
   dom.startupAnnouncementCloseButton.addEventListener("click", () => dom.startupAnnouncementDialog.close());
   dom.startupAnnouncementConfirmButton.addEventListener("click", () => dom.startupAnnouncementDialog.close());
+  dom.manualRefreshReminderCloseButton.addEventListener("click", () => dom.manualRefreshReminderDialog.close());
+  dom.manualRefreshReminderDismissButton.addEventListener("click", () => dom.manualRefreshReminderDialog.close());
+  dom.manualRefreshReminderRefreshButton.addEventListener("click", refreshFromManualReminder);
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "SHOW_STARTUP_PROMPTS") return false;
-    showStartupPrompts().then(() => sendResponse({ ok: true }));
+    (async () => {
+      await showStartupPrompts();
+      await showManualRefreshReminder();
+      sendResponse({ ok: true });
+    })();
     return true;
   });
 }
@@ -792,8 +869,10 @@ function bindEvents() {
 
 async function handleAutoRefreshToggle() {
   const previous = state.ui.autoRefresh;
+  const previousReminderSince = state.ui.manualRefreshReminderSince;
   const enabled = dom.autoRefreshToggle.checked;
   state.ui.autoRefresh = enabled;
+  if (!enabled && previous) state.ui.manualRefreshReminderSince = new Date().toISOString();
   try {
     await saveUiPreferences();
     toast(enabled ? "自动刷新已开启" : "自动刷新已关闭；进入插件时将直接使用上次缓存");
@@ -803,6 +882,7 @@ async function handleAutoRefreshToggle() {
     }
   } catch (error) {
     state.ui.autoRefresh = previous;
+    state.ui.manualRefreshReminderSince = previousReminderSince;
     dom.autoRefreshToggle.checked = previous;
     toast(`自动刷新设置保存失败：${error?.message || String(error)}`, true);
   }
@@ -923,10 +1003,10 @@ function showGradeOfflineEmpty() {
 }
 
 async function refreshGrades({ manual = false } = {}) {
-  if (state.gradeLoading) return;
+  if (state.gradeLoading) return false;
   if (!manual && !state.ui.autoRefresh) {
     showGradeOfflineEmpty();
-    return;
+    return false;
   }
   state.gradeLoading = true;
   dom.gradeRefreshButton.disabled = true;
@@ -955,7 +1035,8 @@ async function refreshGrades({ manual = false } = {}) {
       dom.gradeLoading.classList.add("is-hidden");
       dom.gradeContent.classList.remove("is-hidden");
       renderGrades();
-      return;
+      if (manual) await markManualDataRead();
+      return true;
     }
     if (state.gradeLoadedTermKey !== term.key) {
       state.gradeDetailsByCourse = {};
@@ -987,6 +1068,9 @@ async function refreshGrades({ manual = false } = {}) {
     dom.gradeLoading.classList.add("is-hidden");
     dom.gradeContent.classList.remove("is-hidden");
     renderGrades();
+    const succeeded = result.summaries.length > 0 || term.courses.length === 0;
+    if (manual && succeeded) await markManualDataRead();
+    return succeeded;
   } catch (error) {
     dom.gradeLoading.classList.add("is-hidden");
     const recovered = hadCache || (fallbackTermKey && state.gradeCache?.terms?.some((item) => item.key === fallbackTermKey) && applySelectedGradeCache());
@@ -995,6 +1079,7 @@ async function refreshGrades({ manual = false } = {}) {
       ? `${error.message}。请先登录 TronClass，再点击“刷新成绩”。${recovered ? "当前继续显示上次缓存。" : ""}`
       : `读取失败：${error?.message || String(error)}。${recovered ? "当前继续显示上次缓存。" : ""}`;
     if (error instanceof AuthError) showAuthenticationBanner("成绩接口无法确认当前登录状态。请先登录 TronClass，然后重新刷新成绩。");
+    return false;
   } finally {
     state.gradeLoading = false;
     dom.gradeRefreshButton.disabled = false;
@@ -1089,7 +1174,7 @@ async function toggleGradeCourse(course) {
   }
   state.gradeExpandedCourseIds.add(key);
   renderGrades();
-  if (!state.gradeDetailsByCourse[key] && state.ui.autoRefresh) await loadGradeDetails(course);
+    if (!state.gradeDetailsByCourse[key] && state.ui.autoRefresh) await loadGradeDetails(course, { manual: false });
 }
 
 function renderGradeDetails(course, detail, loading) {
@@ -1100,7 +1185,7 @@ function renderGradeDetails(course, detail, loading) {
   }
   if (!detail) {
     const stateCard = emptyState("尚未读取此课程分项", state.ui.autoRefresh ? "展开后将自动读取。" : "自动刷新已关闭，展开课程不会联网。" );
-    if (!state.ui.autoRefresh) stateCard.append(button("读取此课程明细", "button button-primary button-small", () => void loadGradeDetails(course)));
+    if (!state.ui.autoRefresh) stateCard.append(button("读取此课程明细", "button button-primary button-small", () => void loadGradeDetails(course, { manual: true })));
     container.append(stateCard);
     return container;
   }
@@ -1114,9 +1199,9 @@ function renderGradeDetails(course, detail, loading) {
   return container;
 }
 
-async function loadGradeDetails(course) {
+async function loadGradeDetails(course, { manual = false } = {}) {
   const key = String(course.id);
-  if (state.gradeDetailLoading.has(key)) return;
+  if (state.gradeDetailLoading.has(key)) return false;
   state.gradeDetailLoading.add(key);
   renderGrades();
   try {
@@ -1125,9 +1210,12 @@ async function loadGradeDetails(course) {
     const term = selectedGradeTerm();
     if (term) await saveGradeTermCache(term);
     clearAuthenticationPrompt();
+    if (manual) await markManualDataRead();
+    return true;
   } catch (error) {
     if (error instanceof AuthError) showAuthenticationBanner("成绩接口无法确认当前登录状态。请先登录 TronClass，再读取课程成绩明细。");
     toast(`课程成绩明细读取失败：${error?.message || String(error)}`, true);
+    return false;
   } finally {
     state.gradeDetailLoading.delete(key);
     renderGrades();
@@ -1178,6 +1266,7 @@ async function generateBattleReport() {
     });
     state.battleReport = deriveBattleReport(state.rawBattleReport, battleExclusions());
     await saveBattleReportCache();
+    if (battleReportHasSuccessfulRead(state.rawBattleReport)) await markManualDataRead();
     dom.battleLoading.classList.add("is-hidden");
     renderBattleReport(state.battleReport);
   } catch (error) {
@@ -1380,8 +1469,8 @@ function prefersReducedMotion() {
   return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
 
-async function refresh({ firstLoad }) {
-  if (state.refreshing) return;
+async function refresh({ firstLoad = false, manual = false } = {}) {
+  if (state.refreshing) return false;
   const fallbackCache = state.dashboardCache || null;
   state.refreshing = true;
   dom.refreshButton.disabled = true;
@@ -1404,9 +1493,12 @@ async function refresh({ firstLoad }) {
       state.historyCourseId = state.history[0]?.id || null;
     }
     updateScopeControls();
-    await loadSelectedCourses({ fallbackCache });
+    const succeeded = await loadSelectedCourses({ fallbackCache });
+    if (manual && succeeded) await markManualDataRead();
+    return succeeded;
   } catch (error) {
     showRefreshFailure(error, fallbackCache);
+    return false;
   } finally {
     state.refreshing = false;
     dom.refreshButton.disabled = false;
@@ -1455,6 +1547,9 @@ async function loadSelectedCourses({ fallbackCache = state.dashboardCache || nul
         dom.loadingDetail.textContent = `正在读取 ${index + 1}/${total}：${course.name}`;
       }
     });
+    if (Number(result.successfulSectionCount) <= 0) {
+      throw new Error("本次未能成功读取任何课程数据");
+    }
     state.activities = dedupeBy(result.activities, (item) => item.key);
     state.attendance = result.attendance;
     state.files = dedupeBy(result.files, (item) => item.id);
@@ -1535,9 +1630,9 @@ function renderStudentIdentity() {
 
 function updateScopeControls() {
   dom.historyCourseSelect.classList.toggle("is-hidden", state.scope !== "history");
-  dom.scopeDescription.textContent = state.scope === "ongoing"
-    ? "按照 TronClass 课程列表中的最新学期分组展示，不使用本地日期推测。"
-    : "历史课程按 TronClass 返回顺序列出，每次只读取所选课程。";
+  const description = state.scope === "history" ? "历史课程按 TronClass 返回顺序列出，每次只读取所选课程。" : "";
+  dom.scopeDescription.textContent = description;
+  dom.scopeDescription.classList.toggle("is-hidden", !description);
 
   replaceOptions(dom.historyCourseSelect, state.history.map((course) => ({
     value: String(course.id),
@@ -1664,7 +1759,7 @@ function renderOverview() {
 
 function renderAttendance() {
   if (!state.attendance.length) {
-    dom.attendanceGrid.replaceChildren(emptyState("没有可显示的出勤记录", "课程可能尚未点名，或该课程未开放出勤数据。"));
+    dom.attendanceGrid.replaceChildren(emptyState("没有可显示的出勤记录"));
     return;
   }
 
@@ -1727,7 +1822,7 @@ function renderTasks() {
 
   if (!items.length) {
     const description = state.filters.taskStatus === "attention"
-      ? "当前筛选下没有需要关注的未完成项目；已忽略项目可在“已忽略提示”中恢复。"
+      ? ""
       : state.filters.taskStatus === "ignored"
         ? "当前没有已忽略的学习活动。"
         : "可以尝试切换状态、类型或课程筛选。";
@@ -1853,7 +1948,7 @@ async function updateActivityIgnored(item, ignored, { notify = true } = {}) {
 function renderMaterials() {
   const files = state.files.filter((file) => String(file.courseId) === state.filters.materialCourse);
   if (!files.length) {
-    dom.materialsList.replaceChildren(emptyState("没有可显示的课程文件", "当前课程没有附件，或文件接口暂时不可用。"));
+    dom.materialsList.replaceChildren(emptyState("没有可显示的课程文件"));
     return;
   }
 
@@ -1967,8 +2062,6 @@ function attendanceSettingText(setting) {
   if (setting.arriveLateAsAbsence) rules.push("迟到计作缺席");
   if (setting.leaveEarlyAsAbsence) rules.push("早退计作缺席");
   if (setting.lateCombineEarlyAsAbsence) rules.push("迟到与早退合并计作缺席");
-  if (setting.personalLeaveAsAbsence) rules.push("事假计作缺席");
-  if (setting.sickLeaveAsAbsence) rules.push("病假计作缺席");
   return rules.length ? `本课程点名设置：${rules.join("；")}。插件仅展示平台规则，不自行换算。` : "";
 }
 
@@ -2001,7 +2094,8 @@ function replaceOptions(select, options, selected, emptyLabel = "暂无选项") 
 
 function emptyState(title, description) {
   const node = element("div", "empty-state");
-  node.append(element("strong", "", title), document.createTextNode(description));
+  node.append(element("strong", "", title));
+  if (description) node.append(document.createTextNode(description));
   return node;
 }
 

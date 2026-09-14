@@ -85,7 +85,6 @@
         <span><strong>页面设置</strong><small>排序、折叠与缓存</small></span>
       </button>
       <div class="side-nav-foot">
-        <span>非官方社区项目 · MIT License</span>
         <span class="version-line">当前版本 <strong id="currentVersion">—</strong></span>
         <span id="versionCheckStatus" class="version-check-status">正在检查更新…</span>
         <a class="project-link" href="https://github.com/billylicn/cityu-tronplugin" target="_blank" rel="noreferrer">GitHub 开源项目 <span aria-hidden="true">↗</span></a>
@@ -121,7 +120,7 @@
             <button class="scope-button" data-scope="history" type="button">历史课程</button>
           </div>
           <div class="control-detail">
-            <span id="scopeDescription">按照 TronClass 课程列表中的最新学期分组展示，不使用本地日期推测。</span>
+            <span id="scopeDescription" class="is-hidden"></span>
             <select id="historyCourseSelect" class="select is-hidden" aria-label="选择历史课程"></select>
           </div>
         </section>
@@ -207,7 +206,6 @@
                 <span class="eyebrow">出勤</span>
                 <h2 id="attendanceTitle">出勤情况</h2>
               </div>
-              <p class="section-note">异常记录优先；统计口径以教师在 TronClass 的设置为准。</p>
             </div>
             <div id="attendanceGrid" class="attendance-grid"></div>
           </section>
@@ -243,7 +241,6 @@
           <div>
             <span class="eyebrow">TronClass 成绩数据</span>
             <h2>成绩展示</h2>
-            <p>当前获取得分直接读取 TronClass 成绩页后台接口，不按作业或权重自行计算，不代表最终成绩或正式成绩单；GPA 仅在后台明确提供时显示。</p>
           </div>
           <button id="gradeRefreshButton" class="button button-primary" type="button">刷新成绩</button>
         </section>
@@ -508,6 +505,23 @@
         </div>
       </footer>
     </form>
+  </dialog>
+
+  <dialog id="manualRefreshReminderDialog" class="refresh-reminder-dialog" aria-labelledby="manualRefreshReminderTitle" aria-describedby="manualRefreshReminderMessage">
+    <section class="refresh-reminder-card">
+      <header class="refresh-reminder-header">
+        <div>
+          <span class="eyebrow">数据刷新提醒</span>
+          <h2 id="manualRefreshReminderTitle">已经超过 24 小时未手动刷新</h2>
+        </div>
+        <button id="manualRefreshReminderCloseButton" class="announcement-close" type="button" aria-label="关闭刷新提醒">×</button>
+      </header>
+      <p id="manualRefreshReminderMessage">自动刷新当前已关闭，页面中的缓存数据可能已经过期。建议刷新后再核对 TronClass 原页面。</p>
+      <footer class="refresh-reminder-actions">
+        <button id="manualRefreshReminderDismissButton" class="button button-secondary" type="button">关闭</button>
+        <button id="manualRefreshReminderRefreshButton" class="button button-primary" type="button">立刻刷新数据</button>
+      </footer>
+    </section>
   </dialog>
 
   <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>

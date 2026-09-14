@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { battleRecordKey, buildBattleReport, deriveBattleReport, gradeRisk } from "../lib/battle-report.js";
+import { battleRecordKey, battleReportHasSuccessfulRead, buildBattleReport, deriveBattleReport, gradeRisk } from "../lib/battle-report.js";
 
 const titles = { SSS: "教务系统重点保护对象", SS: "人形绩点打印机", S: "奖学金常驻人口", A: "考前临时抱佛脚大师", B: "六十分精准控制师", C: "课堂摸鱼总工程师", D: "作业延迟交付专家", F: "疑似已退学但仍在群里" };
 
@@ -143,4 +143,21 @@ test("记录键优先使用平台 ID，回退键保持确定性", () => {
   assert.equal(battleRecordKey({ courseId: 5, id: 9 }, "attendance"), "attendance:5:9");
   const record = { courseId: 5, time: "2026-09-08", category: "absent", title: "点名" };
   assert.equal(battleRecordKey(record, "attendance"), battleRecordKey({ ...record }, "attendance"));
+});
+
+
+test("战绩扫描只有取得至少一项课程数据时才算成功读取", () => {
+  assert.equal(battleReportHasSuccessfulRead({ courseCount: 0, successfulCourseCount: 0, failedCourses: [] }), true);
+  assert.equal(battleReportHasSuccessfulRead({ courseCount: 2, successfulCourseCount: 1, failedCourses: [] }), true);
+  assert.equal(battleReportHasSuccessfulRead({
+    courseCount: 1,
+    successfulCourseCount: 0,
+    failedCourses: [{ sections: ["出勤"] }]
+  }), true);
+  assert.equal(battleReportHasSuccessfulRead({
+    courseCount: 1,
+    successfulCourseCount: 0,
+    failedCourses: [{ sections: ["作业", "出勤"] }]
+  }), false);
+  assert.equal(battleReportHasSuccessfulRead(null), false);
 });

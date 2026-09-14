@@ -46,6 +46,21 @@ test("mapLimit 保持结果顺序且限制并发", async () => {
   assert.equal(maximum, 2);
 });
 
+
+
+test("学习总览汇总成功读取的数据分区数量", async () => {
+  const api = new TronClassApi();
+  api.loadCourse = async (course) => ({
+    activities: [],
+    attendance: null,
+    files: [],
+    errors: course.id === 2 ? [{ section: "出勤", message: "失败" }] : [],
+    successfulSectionCount: course.id === 1 ? 7 : 1
+  });
+  const result = await api.loadCourses([{ id: 1 }, { id: 2 }], { internalUserId: 88 });
+  assert.equal(result.successfulSectionCount, 8);
+});
+
 test("战绩报告每门课程只读取作业和考勤接口", async () => {
   const paths = [];
   const api = new TronClassApi({ now: () => new Date("2026-09-08T12:00:00Z") });
