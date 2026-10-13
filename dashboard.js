@@ -1993,7 +1993,7 @@ async function downloadOfficial(file, target) {
     const response = await sendMessage({
       type: "DOWNLOAD",
       url: api.officialDownloadUrl(file.referenceId),
-      filename: downloadPath(file)
+      filename: downloadFilename(file)
     });
     if (!response?.ok) throw new Error(response?.error || "下载启动失败");
     toast(`已开始下载：${file.name}`);
@@ -2003,7 +2003,7 @@ async function downloadOfficial(file, target) {
 async function downloadPreview(file, target) {
   await withBusyButton(target, "获取授权…", async () => {
     const signedUrl = await api.resolvePreviewUrl(file);
-    const response = await sendMessage({ type: "DOWNLOAD", url: signedUrl, filename: downloadPath(file) });
+    const response = await sendMessage({ type: "DOWNLOAD", url: signedUrl, filename: downloadFilename(file) });
     if (!response?.ok) throw new Error(response?.error || "另存启动失败");
     toast(`已通过 TronClass 当前授权开始另存：${file.name}`);
   });
@@ -2016,7 +2016,7 @@ async function downloadBatch(files) {
   let failures = 0;
   for (const file of downloadable) {
     try {
-      const response = await sendMessage({ type: "DOWNLOAD", url: api.officialDownloadUrl(file.referenceId), filename: downloadPath(file) });
+      const response = await sendMessage({ type: "DOWNLOAD", url: api.officialDownloadUrl(file.referenceId), filename: downloadFilename(file) });
       if (!response?.ok) throw new Error(response?.error);
       successes += 1;
     } catch {
@@ -2027,8 +2027,8 @@ async function downloadBatch(files) {
   toast(`批量下载已处理：成功 ${successes}，失败 ${failures}`, failures > 0);
 }
 
-function downloadPath(file) {
-  return `TronClass/${safePathSegment(file.courseName)}/${safePathSegment(file.name)}`;
+function downloadFilename(file) {
+  return safePathSegment(file.name);
 }
 
 function taskStatusInfo(item) {

@@ -73,20 +73,19 @@ async function downloadFile({ url: rawUrl, filename, saveAs = false }) {
 
   return chrome.downloads.download({
     url: url.href,
-    filename: sanitizeDownloadPath(filename),
+    filename: sanitizeDownloadFilename(filename),
     conflictAction: "uniquify",
     saveAs: Boolean(saveAs)
   });
 }
 
-function sanitizeDownloadPath(input) {
-  const parts = String(input || "TronClass/未命名文件")
+function sanitizeDownloadFilename(input) {
+  const parts = String(input || "未命名文件")
     .replace(/\\/g, "/")
     .split("/")
     .map((part) => part.replace(/[<>:"|?*\u0000-\u001f]/g, "_").replace(/^\.+$/, "_").trim())
-    .filter(Boolean)
-    .slice(-3);
-  return parts.join("/") || "TronClass/未命名文件";
+    .filter(Boolean);
+  return parts.at(-1) || "未命名文件";
 }
 
 function respondError(sendResponse) {
