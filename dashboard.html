@@ -58,6 +58,16 @@
         </span>
         <span><strong>成绩展示</strong><small>当前得分与分项</small></span>
       </button>
+      <button class="side-nav-button" data-page="completion" type="button">
+        <span class="side-nav-icon side-nav-icon-completion" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M20 11a8 8 0 1 1-5-7.4"></path>
+            <path d="m9 10 3 3 8-9"></path>
+            <path d="M8 17h7"></path>
+          </svg>
+        </span>
+        <span><strong>完成度管理</strong><small>课程进度与剩余事项</small></span>
+      </button>
       <button class="side-nav-button" data-page="battle" type="button">
         <span class="side-nav-icon side-nav-icon-battle" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false">
@@ -157,7 +167,7 @@
           </section>
 
           <section class="content-section" data-section-key="tasks" aria-labelledby="tasksTitle">
-            <div class="section-heading section-heading-with-controls">
+            <div class="section-heading section-heading-with-controls task-section-heading">
               <div class="task-heading-copy">
                 <span class="eyebrow">任务</span>
                 <div class="task-heading-title">
@@ -174,7 +184,7 @@
                   </details>
                 </div>
               </div>
-              <div class="filter-row">
+              <div class="filter-row task-filter-row">
                 <select id="taskCourseFilter" class="select" aria-label="按课程筛选任务"></select>
                 <select id="taskStatusFilter" class="select" aria-label="按状态筛选任务">
                   <option value="attention">需要关注</option>
@@ -195,6 +205,10 @@
                   <option value="interaction">互动</option>
                   <option value="group">分组学习</option>
                 </select>
+                <div class="task-visibility-options" role="group" aria-label="任务显示选项">
+                  <label><input id="hideDiscussions" type="checkbox">隐藏讨论</label>
+                  <label><input id="hideOverdue" type="checkbox" checked>隐藏逾期</label>
+                </div>
               </div>
             </div>
             <div id="taskList" class="task-list"></div>
@@ -282,6 +296,22 @@
             <ul id="gradeErrorsList" class="errors-list"></ul>
           </section>
         </div>
+      </div>
+
+      <div id="completionPage" class="page-view is-hidden">
+        <section class="completion-heading">
+          <div><span class="eyebrow">当前学期</span><h2>完成度管理</h2>
+            <p>一键查看普通教材、资料和公告；观看时长、发言、答题和提交项目需手动完成。</p>
+          </div>
+          <button id="completionRefreshButton" class="button button-primary" type="button">刷新完成度</button>
+        </section>
+        <div class="completion-overview">
+          <div><strong id="completionTerm">当前学期</strong><span id="completionSummary">尚未读取课程</span></div>
+          <span id="completionMeta" aria-live="polite">尚未读取</span>
+        </div>
+        <p id="completionError" class="completion-error is-hidden" role="alert"></p>
+        <div id="completionState" class="empty-state">暂无完成度缓存，点击“刷新完成度”读取当前学期。</div>
+        <div id="completionList" class="completion-list"></div>
       </div>
 
       <div id="battlePage" class="page-view is-hidden">

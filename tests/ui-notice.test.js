@@ -102,7 +102,7 @@ test("插件界面提供 GitHub 项目、当前版本和更新入口", () => {
 
 test("左侧功能栏使用本地 SVG 图标并保持统一渲染", () => {
   const sideNav = html.slice(html.indexOf('<aside class="side-nav"'), html.indexOf('</aside>', html.indexOf('<aside class="side-nav"')));
-  assert.equal((sideNav.match(/<svg viewBox="0 0 24 24" focusable="false">/g) || []).length, 4);
+  assert.equal((sideNav.match(/<svg viewBox="0 0 24 24" focusable="false">/g) || []).length, 5);
   assert.doesNotMatch(sideNav, />\s*(?:▦|分|★|⚙)\s*</);
   assert.match(css, /\.side-nav-icon svg \{[^}]*stroke: currentColor;/);
 });
@@ -147,7 +147,7 @@ test("页面设置已迁移到左侧独立功能页", () => {
   assert.match(html, /id="settingsForm"/);
   assert.doesNotMatch(html, /id="settingsButton"/);
   assert.doesNotMatch(html, /id="settingsDialog"/);
-  assert.match(script, /\["overview", "grades", "battle", "settings"\]\.includes\(page\)/);
+  assert.match(script, /\["overview", "grades", "completion", "battle", "settings"\]\.includes\(page\)/);
   assert.match(script, /dom\.settingsPage\.classList\.toggle\("is-hidden", page !== "settings"\)/);
   assert.match(script, /if \(page === "settings"\) prepareSettingsPage\(\)/);
 });

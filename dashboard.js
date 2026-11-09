@@ -6,6 +6,8 @@ import { BATTLE_REPORT_CACHE_KEY, DASHBOARD_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_G
 import { compareVersions, displayVersion } from "./lib/version.js";
 import { GRADE_STATUS_LABELS, GRADE_TYPE_LABELS, gradeScoreText, groupCoursesByTerm } from "./lib/grades.js";
 import { manualRefreshReminderDue, validReminderSince } from "./lib/refresh-reminder.js";
+import { CompletionPage } from "./lib/completion-page.js";
+import { COMPLETION_CACHE_KEY, readCompletionCache } from "./lib/cache.js";
 import {
   STATUS_LABELS,
   TYPE_LABELS,
@@ -90,6 +92,8 @@ const state = {
     sectionOrder: [...DEFAULT_SECTION_ORDER],
     defaultCollapsed: { ...DEFAULT_COLLAPSED },
     autoRefresh: false,
+    hideDiscussions: false,
+    hideOverdue: true,
     manualRefreshReminderSince: "",
     suppressUsageNotice: false,
     ignoredAnnouncementFingerprint: "",
@@ -97,14 +101,29 @@ const state = {
   }
 };
 
+const completionPage = new CompletionPage({
+  api,
+  getContext: () => ({ courses: state.courses, autoRefresh: state.ui.autoRefresh }),
+  onCourses: courses => {
+    state.courses = courses;
+    ({ ongoing: state.ongoing, history: state.history } = splitCoursesByPlatformTerm(courses));
+    updateScopeControls();
+    updateGradeScopeControls();
+  },
+  onAuthenticated: student => { state.student = student; renderStudentIdentity(); clearAuthenticationPrompt(); },
+  onAuthError: message => showAuthenticationBanner(`${message}。请登录后刷新完成度。`),
+  onManualRead: () => markManualDataRead(),
+  onNotice: (message, isError) => toast(message, isError)
+});
+
 const dom = Object.fromEntries([
   "studentIdentity", "studentName", "studentNumber", "refreshMeta", "refreshButton", "authBanner", "authBannerMessage", "authLoginButton", "authRefreshButton",
   "loginPanel", "loginTitle", "loginMessage", "loginButton", "loginRefreshButton", "loadingPanel",
   "loadingTitle", "loadingDetail", "dashboardContent", "scopeDescription", "historyCourseSelect",
   "courseSummary", "statsGrid", "attendanceGrid", "taskCourseFilter", "taskStatusFilter",
-  "taskTypeFilter", "taskList", "hiddenTasksMenu", "hiddenTaskCount", "hiddenTaskList", "restoreAllHiddenTasks", "materialCourseFilter", "materialsList", "errorsSection",
+  "taskTypeFilter", "hideDiscussions", "hideOverdue", "taskList", "hiddenTasksMenu", "hiddenTaskCount", "hiddenTaskList", "restoreAllHiddenTasks", "materialCourseFilter", "materialsList", "errorsSection",
   "errorsList", "toastRegion", "settingsPage", "settingsForm", "settingsResetButton", "settingsApplyButton",
-  "sectionSettingsList", "autoRefreshToggle", "clearCacheButton", "overviewPage", "gradesPage", "battlePage",
+  "sectionSettingsList", "autoRefreshToggle", "clearCacheButton", "overviewPage", "gradesPage", "completionPage", "battlePage",
   "gradeRefreshButton", "gradeHistoryTermSelect", "gradeCourseFilter",
   "gradeEmpty", "gradeEmptyMessage", "gradeLoading", "gradeLoadingTitle", "gradeLoadingDetail", "gradeError", "gradeErrorMessage",
   "gradeContent",
@@ -138,6 +157,8 @@ void start();
 
 async function start() {
   await loadUiPreferences();
+  dom.hideDiscussions.checked = state.ui.hideDiscussions;
+  dom.hideOverdue.checked = state.ui.hideOverdue;
   await ensureManualRefreshReminderBaseline();
   renderCurrentVersion();
   await showStartupPrompts();
@@ -460,6 +481,8 @@ async function loadUiPreferences() {
     if (order.length === DEFAULT_SECTION_ORDER.length) state.ui.sectionOrder = order;
 
     if (typeof preferences.autoRefresh === "boolean") state.ui.autoRefresh = preferences.autoRefresh;
+    if (typeof preferences.hideDiscussions === "boolean") state.ui.hideDiscussions = preferences.hideDiscussions;
+    if (typeof preferences.hideOverdue === "boolean") state.ui.hideOverdue = preferences.hideOverdue;
     state.ui.manualRefreshReminderSince = validReminderSince(preferences.manualRefreshReminderSince);
     if (typeof preferences.suppressUsageNotice === "boolean") state.ui.suppressUsageNotice = preferences.suppressUsageNotice;
     if (typeof preferences.ignoredAnnouncementFingerprint === "string" && /^[a-f0-9]{64}$/i.test(preferences.ignoredAnnouncementFingerprint)) {
@@ -492,6 +515,8 @@ async function saveUiPreferences() {
       sectionOrder: [...state.ui.sectionOrder],
       defaultCollapsed: { ...state.ui.defaultCollapsed },
       autoRefresh: state.ui.autoRefresh,
+      hideDiscussions: state.ui.hideDiscussions,
+      hideOverdue: state.ui.hideOverdue,
       manualRefreshReminderSince: state.ui.manualRefreshReminderSince,
       suppressUsageNotice: state.ui.suppressUsageNotice,
       ignoredAnnouncementFingerprint: state.ui.ignoredAnnouncementFingerprint,
@@ -505,11 +530,12 @@ async function loadCaches() {
   const storage = globalThis.chrome?.storage?.local;
   if (!storage) return false;
   try {
-    const stored = await storage.get([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY]);
+    const stored = await storage.get([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY, COMPLETION_CACHE_KEY]);
     if (stored?.[LEGACY_GRADE_CACHE_KEY] !== undefined) await storage.remove(LEGACY_GRADE_CACHE_KEY);
     const dashboardCache = readDashboardCache(stored?.[DASHBOARD_CACHE_KEY]);
     const battleCache = readBattleReportCache(stored?.[BATTLE_REPORT_CACHE_KEY]);
     const gradeCache = readGradeCache(stored?.[GRADE_CACHE_KEY]);
+    const completionCache = readCompletionCache(stored?.[COMPLETION_CACHE_KEY]);
     if (dashboardCache) applyDashboardCache(dashboardCache);
     if (gradeCache) {
       state.gradeCache = gradeCache;
@@ -519,6 +545,13 @@ async function loadCaches() {
       }
       updateGradeScopeControls();
     }
+    if (completionCache) {
+      completionPage.restore(completionCache);
+      if (!state.courses.length) {
+        state.courses = completionCache.courses;
+        ({ ongoing: state.ongoing, history: state.history } = splitCoursesByPlatformTerm(state.courses));
+      }
+    }
     if (battleCache) {
       state.rawBattleReport = battleCache.rawReport;
       state.hiddenAttendanceKeys = new Set(battleCache.hiddenAttendanceKeys);
@@ -527,7 +560,7 @@ async function loadCaches() {
       dom.battleEmpty.classList.add("is-hidden");
       renderBattleReport(state.battleReport);
     }
-    return Boolean(dashboardCache || battleCache || gradeCache);
+    return Boolean(dashboardCache || battleCache || gradeCache || completionCache);
   } catch (error) {
     console.warn("无法读取本地缓存", error);
     await clearInvalidCaches();
@@ -621,7 +654,7 @@ async function saveBattleReportCache() {
 
 async function clearInvalidCaches() {
   const storage = globalThis.chrome?.storage?.local;
-  try { await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY]); } catch { /* ignore */ }
+  try { await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY, COMPLETION_CACHE_KEY]); } catch { /* ignore */ }
 }
 
 function battleExclusions() {
@@ -748,7 +781,8 @@ async function applySettings() {
 async function clearStoredData() {
   const storage = globalThis.chrome?.storage?.local;
   try {
-    await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY]);
+    await storage?.remove?.([DASHBOARD_CACHE_KEY, BATTLE_REPORT_CACHE_KEY, GRADE_CACHE_KEY, LEGACY_GRADE_CACHE_KEY, COMPLETION_CACHE_KEY]);
+    completionPage.clearCache();
     state.dashboardCache = null;
     state.hasDashboardCache = false;
     // 只删除持久化成绩缓存；当前页面已经读取的成绩继续保留在内存中，
@@ -801,7 +835,8 @@ function bindEvents() {
   dom.loginButton.addEventListener("click", () => openUrl("https://tronclass.cityu.edu.mo/"));
   dom.loginRefreshButton.addEventListener("click", () => refresh({ firstLoad: false, manual: true }));
   dom.authLoginButton.addEventListener("click", () => openUrl("https://tronclass.cityu.edu.mo/"));
-  dom.authRefreshButton.addEventListener("click", () => refresh({ firstLoad: false, manual: true }));
+  dom.authRefreshButton.addEventListener("click", () => state.page === "completion"
+    ? completionPage.refresh({ manual: true }) : refresh({ firstLoad: false, manual: true }));
 
   document.querySelectorAll(".scope-button").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -832,6 +867,8 @@ function bindEvents() {
   dom.taskCourseFilter.addEventListener("change", () => { state.filters.taskCourse = dom.taskCourseFilter.value; renderTasks(); });
   dom.taskStatusFilter.addEventListener("change", () => { state.filters.taskStatus = dom.taskStatusFilter.value; renderTasks(); });
   dom.taskTypeFilter.addEventListener("change", () => { state.filters.taskType = dom.taskTypeFilter.value; renderTasks(); });
+  dom.hideDiscussions.addEventListener("change", () => void updateTaskVisibility("hideDiscussions", dom.hideDiscussions));
+  dom.hideOverdue.addEventListener("change", () => void updateTaskVisibility("hideOverdue", dom.hideOverdue));
   dom.restoreAllHiddenTasks.addEventListener("click", restoreAllIgnoredActivities);
   dom.materialCourseFilter.addEventListener("change", () => { state.filters.materialCourse = dom.materialCourseFilter.value; renderMaterials(); });
   dom.settingsResetButton.addEventListener("click", resetSettingsDraft);
@@ -879,6 +916,7 @@ async function handleAutoRefreshToggle() {
     if (enabled && !previous) {
       await refresh({ firstLoad: !state.hasDashboardCache });
       if (state.page === "grades") await refreshGrades({ manual: false });
+      if (state.page === "completion") await completionPage.refresh();
     }
   } catch (error) {
     state.ui.autoRefresh = previous;
@@ -894,10 +932,11 @@ function dashboardCacheMatchesScope() {
 }
 
 function switchPage(page) {
-  if (!["overview", "grades", "battle", "settings"].includes(page)) return;
+  if (!["overview", "grades", "completion", "battle", "settings"].includes(page)) return;
   state.page = page;
   dom.overviewPage.classList.toggle("is-hidden", page !== "overview");
   dom.gradesPage.classList.toggle("is-hidden", page !== "grades");
+  dom.completionPage.classList.toggle("is-hidden", page !== "completion");
   dom.battlePage.classList.toggle("is-hidden", page !== "battle");
   dom.settingsPage.classList.toggle("is-hidden", page !== "settings");
   document.querySelectorAll(".side-nav-button[data-page]").forEach((navButton) => {
@@ -909,6 +948,7 @@ function switchPage(page) {
   document.querySelectorAll(".overview-action").forEach((node) => node.classList.toggle("is-hidden", page !== "overview"));
   if (page === "settings") prepareSettingsPage();
   if (page === "grades") void prepareGradesPage();
+  if (page === "completion") void completionPage.prepare();
 }
 
 async function prepareGradesPage() {
@@ -1805,6 +1845,29 @@ function renderAttendance() {
   }));
 }
 
+async function updateTaskVisibility(key, checkbox) {
+  if (dom.hideDiscussions.disabled || dom.hideOverdue.disabled) {
+    checkbox.checked = state.ui[key];
+    return;
+  }
+  const previous = state.ui[key];
+  state.ui[key] = checkbox.checked;
+  dom.hideDiscussions.disabled = true;
+  dom.hideOverdue.disabled = true;
+  renderTasks();
+  try {
+    await saveUiPreferences();
+  } catch {
+    state.ui[key] = previous;
+    checkbox.checked = previous;
+    renderTasks();
+    toast("显示选项保存失败，已恢复原设置", true);
+  } finally {
+    dom.hideDiscussions.disabled = false;
+    dom.hideOverdue.disabled = false;
+  }
+}
+
 function renderTasks() {
   renderHiddenTasksMenu();
   let items = [...state.activities];
@@ -1818,6 +1881,8 @@ function renderTasks() {
   }
   if (state.filters.taskType === "group") items = items.filter((item) => item.isGroupTask);
   else if (state.filters.taskType !== "all") items = items.filter((item) => item.sourceType === state.filters.taskType);
+  if (state.ui.hideDiscussions) items = items.filter((item) => item.sourceType !== "discussion");
+  if (state.ui.hideOverdue) items = items.filter((item) => item.status !== "overdue");
   items.sort(taskSort);
 
   if (!items.length) {
